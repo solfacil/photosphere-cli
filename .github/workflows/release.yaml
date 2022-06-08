@@ -133,14 +133,3 @@ jobs:
       id: shasum
       run: |
         echo ::set-output name=sha::"$(shasum -a 256 ./release/gitui-mac.tar.gz | awk '{printf $1}')"
-
-    - name: Update homebrew tap
-      uses: mislav/bump-homebrew-formula-action@v1
-      if: "matrix.target == 'x86_64-apple-darwin' && !contains(github.ref, '-')"
-      with:
-        formula-name: photosphere
-        formula-path: photosphere.rb
-        homebrew-tap: railwayapp/homebrew-tap
-        download-url: https://github.com/railwayapp/photosphere/releases/latest/download/photosphere-${{ needs.create-release.outputs.photosphere_version }}-x86_64-apple-darwin.tar.gz
-      env:
-        COMMITTER_TOKEN: ${{ secrets.COMMITTER_TOKEN }}
