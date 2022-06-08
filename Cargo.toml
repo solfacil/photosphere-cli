@@ -2,6 +2,12 @@
 name = "photosphere"
 version = "0.1.0"
 edition = "2021"
+license = "BSD-3-Clause"
+authors = ["Zoey Pessanha <zoey.pessanha@solfacil.com.br>"]
+description = "An easy way to start a service-template project"
+readme = "README.md"
+homepage = "https://github.com/solfacil/photosphere"
+repository = "https://github.com/solfacil/photosphere"
 
 [[bin]]
 name = "photosphere"

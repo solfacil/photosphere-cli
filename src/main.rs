@@ -26,7 +26,6 @@ struct Service {
 #[clap(arg_required_else_help = true)]
 enum ServiceCommand {
     New { name: String },
-    Sync,
 }
 
 fn main() -> Result<()> {
@@ -35,7 +34,6 @@ fn main() -> Result<()> {
     match &cli.cmd {
         Commands::Service(service) => {
             match &service.cmd {
-                ServiceCommand::Sync => println!("will sync"),
                 ServiceCommand::New { name } => println!("name: {:?}", name),
             }
         }
