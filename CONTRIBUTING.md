@@ -23,7 +23,7 @@ PRs are all checked with
 - `cargo check`
 - `rustfmt`
 - `cargo clippy`
-- `cargo nextest`
+- `cargo test`
 
 so you can run these locally to ensure CI passes.
 
