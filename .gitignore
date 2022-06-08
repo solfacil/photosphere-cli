@@ -1,0 +1,5 @@
+# Ignore rust build result
+/target
+
+# Ignore nix build
+result
