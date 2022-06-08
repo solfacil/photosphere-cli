@@ -120,9 +120,6 @@ jobs:
         tar czvf ../../../photosphere-${{ needs.create-release.outputs.photosphere_version }}-${{ matrix.target }}.tar.gz photosphere
         cd -
 
-    - name: Add Checksums
-      run: for file in photosphere-*/photosphere-*; do openssl dgst -sha256 -r "$file" | awk '{print $1}' > "${file}.sha256"; done
-
     - name: Upload release archive
       uses: softprops/action-gh-release@v1
       env:
