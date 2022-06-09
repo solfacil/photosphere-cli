@@ -1,6 +1,6 @@
 # Photosphere CLI
 
-The Photosphere CLI is a command-line interface tool that you use to initialize, develop, scaffold, and maintain [Photosphere](https://github.com/solfacil/photosphere) applications directly from a command shell.
+The Photosphere CLI is a command-line interface tool that you use to initialize, develop, scaffold, and maintain [service-template](https://github.com/solfacil/service-template) applications directly from a command shell.
 
 ## Install
 
@@ -33,3 +33,10 @@ photosphere --ssh service new <service_name>
 
 Where `--ssh` is an optional flag, as the default clone method is `HTTP` and `<service_name>` is
 the path of your new service :D.
+
+## Why "Photosphere"?
+
+"Photosphere" is the deepest part of the Sun (internal) which can be directly oberserved (external) with visible light.
+That's creates the idea of turning some internal concept into a external/public/visible one.
+
+Photosphere CLI does exactly this! Transform our [service-template](https://github.com/solfacil/service-template) (internal) to your new service (external)!
