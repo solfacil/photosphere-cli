@@ -25,12 +25,16 @@
             version = "v0.1.0";
             doCheck = true;
             src = ./.;
-            nativeBuildInputs = [ rustfmt cargo-nextest clippy ];
+            checkInputs = [ rustfmt cargo-nextest clippy ];
             checkPhase = ''
+              runHook preCheck
+
               cargo check
-              rustfmt
+              rustfmt --check src/main.rs
               cargo clippy
               cargo nextest run
+
+              runHook postCheck
             '';
             cargoLock = {
               lockFile = ./Cargo.lock;
