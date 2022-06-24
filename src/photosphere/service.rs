@@ -5,8 +5,9 @@ pub struct Service {
     monitoring: bool,
     mailer: bool,
     http_client: bool,
-    graph_ql: bool,
+    graphql: bool,
     gettext: bool,
+    messaging: bool,
     protocol: Protocol,
 }
 
@@ -47,10 +48,13 @@ impl Dep {
         self.name.to_lowercase().eq("gettext")
     }
 
-    fn is_graph_ql(&self) -> bool {
+    fn is_graphql(&self) -> bool {
         let lc_name = self.name.to_lowercase();
 
-        lc_name.eq("absinthe") || lc_name.eq("absinthe_plug")
+        lc_name.eq("absinthe")
+            || lc_name.eq("absinthe_plug")
+            || lc_name.eq("absinthe_phoenix")
+            || lc_name.eq("absinthe_relay")
     }
 
     fn is_grpc(&self) -> bool {
@@ -69,6 +73,10 @@ impl Dep {
         lc_name.eq("swoosh") || lc_name.eq("gen_smtp")
     }
 
+    fn is_messaging(&self) -> bool {
+        self.name.to_lowercase().eq("messaging")
+    }
+
     fn is_monitoring(&self) -> bool {
         let lc_name = self.name.to_lowercase();
 
@@ -83,10 +91,11 @@ impl Service {
             auth: true,
             database: true,
             gettext: true,
-            graph_ql: true,
+            graphql: true,
             http_client: true,
             mailer: true,
             monitoring: true,
+            messaging: true,
             protocol: Protocol::Rest,
         }
     }
@@ -106,12 +115,13 @@ impl Service {
         self.deps.retain(|d| !d.is_gettext());
     }
 
-    fn set_no_graph_ql(&mut self) {
-        self.graph_ql = false;
-        self.deps.retain(|d| !d.is_graph_ql());
+    fn set_no_graphql(&mut self) {
+        self.graphql = false;
+        self.deps.retain(|d| !d.is_graphql());
     }
 
     fn set_no_grpc(&mut self) {
+        // TODO remove all grpc stuff
         self.deps.retain(|d| !d.is_grpc());
     }
 
@@ -125,6 +135,11 @@ impl Service {
         self.deps.retain(|d| !d.is_mailer());
     }
 
+    fn set_no_messaging(&mut self) {
+        self.messaging = false;
+        self.deps.retain(|d| !d.is_messaging());
+    }
+
     fn set_no_monitoring(&mut self) {
         self.monitoring = false;
         self.deps.retain(|d| !d.is_monitoring());
@@ -132,7 +147,7 @@ impl Service {
 
     fn set_no_rest(&mut self) {
         // TODO remove all phoenix stuff
-        self.set_no_graph_ql();
+        self.set_no_graphql();
     }
 
     fn set_protocol(&mut self, protocol: Protocol) {
@@ -140,11 +155,11 @@ impl Service {
             Protocol::Rest => {
                 self.protocol = protocol;
                 self.set_no_grpc();
-            },
+            }
             Protocol::Grpc => {
                 self.protocol = protocol;
                 self.set_no_rest();
-            },
+            }
         }
     }
 
