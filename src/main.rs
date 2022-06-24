@@ -128,9 +128,7 @@ fn rename_source(new: &str, dest: &str) -> Result<()> {
         let data = std::fs::read_to_string(entry.path())?;
 
         let kabeb_name = str_utils::to_kebab_case(new);
-
         let with_space = str_utils::to_title(new);
-
         let pascal_name = str_utils::to_pascal_case(new);
 
         let new_data = data
