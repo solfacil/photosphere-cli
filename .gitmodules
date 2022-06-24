@@ -1,3 +1,0 @@
-[submodule "tree-sitter-elixir"]
-	path = tree-sitter-elixir
-	url = git@github.com:elixir-lang/tree-sitter-elixir.git
