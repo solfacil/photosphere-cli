@@ -22,7 +22,7 @@
 
           photosphere = rustPlatform.buildRustPackage rec {
             pname = "photosphere";
-            version = "v0.2.0";
+            version = "v0.3.0";
             doCheck = true;
             src = ./.;
             checkInputs = [ rustfmt cargo-nextest clippy ];
