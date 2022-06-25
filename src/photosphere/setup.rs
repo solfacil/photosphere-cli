@@ -14,36 +14,23 @@ const SSH_URL: &'static &str = &"git@github.com:solfacil/service-template";
 
 pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
 
-pub fn build_service(args: &ServiceArgs) -> Service {
+pub fn build_partial_service(service_path: &str, is_ssh: bool) -> Service {
     let mut default_service = Service::default();
 
-    let service_name = get_project_name(&args.path);
-    let service_path = (*args.path).to_string();
+    let service_name = get_project_name(service_path);
 
-    // set deps first to filter them after
-    let service = default_service
-        .set_deps(vec![])
-        .set_auth(args.no_auth)
-        .set_database(args.no_database)
-        .set_gettext(args.no_gettext)
-        .set_graphql(args.no_graphql)
-        .set_http_client(args.no_http_client)
-        .set_mailer(args.no_mailer)
-        .set_messaging(args.no_messaging)
-        .set_monitoring(args.no_monitoring)
-        .set_name(String::from(service_name))
-        .set_path(service_path)
-        .set_protocol(args.protocol)
-        .set_ssh(args.ssh);
-
-    service.clone()
+    default_service
+        .set_name(service_name.to_string())
+        .set_path(service_path.to_string())
+        .set_ssh(is_ssh)
+        .clone()
 }
 
-pub fn create_service(service: &Service) -> Result<()> {
+pub fn create_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
     let repo_url = get_repo_url(service.ssh);
     clone_repository(&repo_url, &service.path)?;
 
-    setup_service(service)?;
+    setup_service(service, args)?;
 
     println!(
         "\u{001b}[32m \nGenerated {} with Photosphere {} \u{001b}[0m\n\n\
@@ -72,19 +59,31 @@ fn clone_repository(url: &str, dest: &str) -> Result<(), Error> {
     Ok(())
 }
 
+fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
+    // set deps first to filter them after
+    service
+        .set_deps(vec![])
+        .set_auth(args.no_auth)
+        .set_database(args.no_database)
+        .set_gettext(args.no_gettext)
+        .set_graphql(args.no_graphql)
+        .set_http_client(args.no_http_client)
+        .set_mailer(args.no_mailer)
+        .set_messaging(args.no_messaging)
+        .set_monitoring(args.no_monitoring);
+
+    clean_source(&service.path)?;
+    rename_source(&service.name, &service.path)?;
+
+    Ok(())
+}
+
 fn get_repo_url(is_ssh: bool) -> String {
     if is_ssh {
         return SSH_URL.to_string();
     }
 
     HTTPS_URL.to_string()
-}
-
-fn setup_service(service: &Service) -> Result<()> {
-    clean_source(&service.path)?;
-    rename_source(&service.name, &service.path)?;
-
-    Ok(())
 }
 
 fn clean_source(dest: &str) -> Result<(), std::io::Error> {

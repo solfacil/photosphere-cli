@@ -70,9 +70,9 @@ fn main() -> Result<()> {
     match &cli.cmd {
         Commands::Service(service) => match &service.cmd {
             ServiceCommand::New(args) => {
-                let service = setup::build_service(args);
+                let mut service = setup::build_partial_service(&args.path, args.ssh);
 
-                setup::create_service(&service)?
+                setup::create_service(&mut service, args)?
             }
         },
     }
