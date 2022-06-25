@@ -1,5 +1,6 @@
 use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 use dep::Dep;
+use std::path::PathBuf;
 
 pub mod dep;
 
@@ -15,7 +16,7 @@ pub struct Service {
     pub(super) messaging: bool,
     pub(super) monitoring: bool,
     pub(super) name: String,
-    pub(super) path: String,
+    pub(super) path: PathBuf,
     pub(super) protocol: Protocol,
     pub(super) ssh: bool,
 }
@@ -24,6 +25,8 @@ const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
 
 impl Service {
     pub fn default() -> Self {
+        let default_path = PathBuf::from(&format!("./{}", SNAKE_CASE_DEFAULT));
+
         Service {
             auth: true,
             database: true,
@@ -35,7 +38,7 @@ impl Service {
             monitoring: true,
             messaging: true,
             name: SNAKE_CASE_DEFAULT.to_string(),
-            path: SNAKE_CASE_DEFAULT.to_string(),
+            path: default_path,
             protocol: Protocol::Rest,
             ssh: false,
         }
@@ -142,7 +145,7 @@ impl Service {
     }
 
     pub fn set_path(&mut self, path: String) -> &mut Service {
-        self.path = path;
+        self.path = PathBuf::from(&path);
 
         self
     }

@@ -5,7 +5,11 @@ use super::{
 };
 use crate::ServiceArgs;
 use anyhow::Result;
-use std::{io::Error, path::Path, process::Command};
+use std::{
+    io::Error,
+    path::{Path, PathBuf},
+    process::Command,
+};
 use walkdir::WalkDir;
 
 const WITH_SPACE_DEFAULT: &'static &str = &"Service Template";
@@ -42,22 +46,26 @@ pub fn create_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
          $ cd {}\n\
          $ mix setup - to get dependencies\n\
          $ iex -S mix phx.server - to set up the service server",
-        service.name, VERSION, service.path
+        service.name,
+        VERSION,
+        service.path.as_path().display()
     );
 
     println!(
         "\u{001b}[33m\nDon't forget to update {}/README.md! \u{001b}[33m",
-        service.path
+        service.path.as_path().display()
     );
 
     Ok(())
 }
 
-fn clone_repository(url: &str, dest: &str) -> Result<(), Error> {
+fn clone_repository(url: &str, dest: &PathBuf) -> Result<(), Error> {
+    let dest_os = dest.as_path().as_os_str();
+
     Command::new("git")
         .arg("clone")
         .arg(url)
-        .arg(dest)
+        .arg(dest_os)
         .status()?;
 
     Ok(())
@@ -79,7 +87,7 @@ fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
         .set_messaging(args.no_messaging)
         .set_monitoring(args.no_monitoring);
 
-    clean_source(&service.path)?;
+    clean_source(&service.path.as_path())?;
     rename_source(&service.name, &service.path)?;
 
     Ok(())
@@ -93,13 +101,13 @@ fn get_repo_url(is_ssh: bool) -> String {
     HTTPS_URL.to_string()
 }
 
-fn clean_source(dest: &str) -> Result<(), std::io::Error> {
-    let path_to_rm = Path::new(dest).join(".git");
+fn clean_source(dest: &Path) -> Result<(), std::io::Error> {
+    let path_to_rm = dest.join(".git");
 
     std::fs::remove_dir_all(path_to_rm)
 }
 
-fn rename_source(new: &str, dest: &str) -> Result<()> {
+fn rename_source(new: &str, dest: &Path) -> Result<()> {
     let entries = WalkDir::new(dest)
         .into_iter()
         .filter_map(|e| e.ok())
