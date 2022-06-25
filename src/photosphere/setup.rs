@@ -1,4 +1,4 @@
-use super::{service::Service, str_utils, validations::get_project_name};
+use super::{service::{dep::Dep, Service}, str_utils, validations::get_project_name};
 use crate::ServiceArgs;
 use anyhow::Result;
 use std::{io::Error, path::Path, process::Command};
@@ -60,6 +60,9 @@ fn clone_repository(url: &str, dest: &str) -> Result<(), Error> {
 }
 
 fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
+    // TODO
+    // let deps = parse_deps(&service.path);
+
     // set deps first to filter them after
     service
         .set_deps(vec![])
