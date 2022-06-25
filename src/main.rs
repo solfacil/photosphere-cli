@@ -51,7 +51,7 @@ struct ServiceArgs {
     #[clap(long)]
     no_mailer: bool,
     #[clap(long)]
-    no_messagin: bool,
+    no_messaging: bool,
     #[clap(long)]
     no_monitoring: bool,
     #[clap(long, arg_enum, default_value_t = Protocol::Rest)]
