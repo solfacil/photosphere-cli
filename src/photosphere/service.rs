@@ -23,7 +23,7 @@ pub struct Service {
 const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
 
 impl Service {
-    pub fn new() -> Service {
+    pub fn default() -> Self {
         Service {
             auth: true,
             database: true,

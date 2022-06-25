@@ -15,7 +15,7 @@ const SSH_URL: &'static &str = &"git@github.com:solfacil/service-template";
 pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
 
 pub fn build_service(args: &ServiceArgs) -> Service {
-    let mut default_service = Service::new();
+    let mut default_service = Service::default();
 
     let service_name = get_project_name(&args.path);
     let service_path = (*args.path).to_string();
@@ -43,7 +43,7 @@ pub fn create_service(service: &Service) -> Result<()> {
     let repo_url = get_repo_url(service.ssh);
     clone_repository(&repo_url, &service.path)?;
 
-    setup_service(&service)?;
+    setup_service(service)?;
 
     println!(
         "\u{001b}[32m \nGenerated {} with Photosphere {} \u{001b}[0m\n\n\
