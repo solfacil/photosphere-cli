@@ -1,12 +1,19 @@
+#[derive(Clone)]
 pub struct Dep {
-    name: String,
-    version: Option<String>,
+    conflict: bool,
     git: bool,
+    name: String,
+    version: String,
 }
 
 impl Dep {
-    pub fn new(name: String, version: Option<String>, git: bool) -> Dep {
-        Dep { name, version, git }
+    pub fn new(name: String, version: String, git: bool, conflict: bool) -> Dep {
+        Dep {
+            conflict,
+            git,
+            name,
+            version,
+        }
     }
 
     pub fn is_auth(&self) -> bool {

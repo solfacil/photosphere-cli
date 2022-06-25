@@ -1,29 +1,30 @@
-use crate::Protocol;
+use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 use dep::Dep;
 
 pub mod dep;
 
+#[derive(Clone)]
 pub struct Service {
-    auth: bool, // both authentication and authorization
-    database: bool,
-    deps: Vec<Dep>,
-    gettext: bool,
-    graphql: bool,
-    http_client: bool,
-    mailer: bool,
-    messaging: bool,
-    monitoring: bool,
-    name: Option<String>,
-    path: Option<String>,
-    protocol: Protocol,
-    ssh: bool,
+    pub(super) auth: bool, // both authentication and authorization
+    pub(super) database: bool,
+    pub(super) deps: Vec<Dep>,
+    pub(super) gettext: bool,
+    pub(super) graphql: bool,
+    pub(super) http_client: bool,
+    pub(super) mailer: bool,
+    pub(super) messaging: bool,
+    pub(super) monitoring: bool,
+    pub(super) name: String,
+    pub(super) path: String,
+    pub(super) protocol: Protocol,
+    pub(super) ssh: bool,
 }
 
 const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
 
 impl Service {
-    pub fn new() -> &'static mut Service {
-        &mut Service {
+    pub fn new() -> Service {
+        Service {
             auth: true,
             database: true,
             deps: vec![],
@@ -33,8 +34,8 @@ impl Service {
             mailer: true,
             monitoring: true,
             messaging: true,
-            name: None,
-            path: None,
+            name: SNAKE_CASE_DEFAULT.to_string(),
+            path: SNAKE_CASE_DEFAULT.to_string(),
             protocol: Protocol::Rest,
             ssh: false,
         }
@@ -135,13 +136,13 @@ impl Service {
     }
 
     pub fn set_name(&mut self, name: String) -> &mut Service {
-        self.name = Some(name);
+        self.name = name;
 
         self
     }
 
     pub fn set_path(&mut self, path: String) -> &mut Service {
-        self.path = Some(path);
+        self.path = path;
 
         self
     }

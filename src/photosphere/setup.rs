@@ -4,20 +4,21 @@ use anyhow::Result;
 use std::{io::Error, path::Path, process::Command};
 use walkdir::WalkDir;
 
-const HTTPS_ENDPOINT: &'static &str = &"https://github.com/solfacil/";
-const SSH_ENDPOINT: &'static &str = &"git@github.com:solfacil/";
 const WITH_SPACE_DEFAULT: &'static &str = &"Service Template";
 const PASCAL_CASE_DEFAULT: &'static &str = &"ServiceTemplate";
 const KABEB_CASE_DEFAULT: &'static &str = REPO_NAME;
+const REPO_NAME: &'static &str = &"service-template";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
+const HTTPS_URL: &'static &str = &"https://github.com/solfacil/service-template";
+const SSH_URL: &'static &str = &"git@github.com:solfacil/service-template";
 
-pub const REPO_NAME: &'static &str = &"service-template";
 pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
 
 pub fn build_service(args: &ServiceArgs) -> Service {
     let mut default_service = Service::new();
 
-    let project_name = get_project_name(&args.path);
+    let service_name = get_project_name(&args.path);
+    let service_path = (*args.path).to_string();
 
     // set deps first to filter them after
     let service = default_service
@@ -30,19 +31,19 @@ pub fn build_service(args: &ServiceArgs) -> Service {
         .set_mailer(args.no_mailer)
         .set_messaging(args.no_messaging)
         .set_monitoring(args.no_monitoring)
-        .set_name(String::from(project_name))
-        .set_path(args.path)
+        .set_name(String::from(service_name))
+        .set_path(service_path)
         .set_protocol(args.protocol)
         .set_ssh(args.ssh);
 
-    *service
+    service.clone()
 }
 
-pub fn create_service(path: &str, ssh: bool) -> Result<()> {
-    let repo_url = get_repo_url(ssh);
-    clone_repository(&repo_url, path)?;
+pub fn create_service(service: &Service) -> Result<()> {
+    let repo_url = get_repo_url(service.ssh);
+    clone_repository(&repo_url, &service.path)?;
 
-    setup_service(project_name, path)?;
+    setup_service(&service)?;
 
     println!(
         "\u{001b}[32m \nGenerated {} with Photosphere {} \u{001b}[0m\n\n\
@@ -50,12 +51,12 @@ pub fn create_service(path: &str, ssh: bool) -> Result<()> {
          $ cd {}\n\
          $ mix setup - to get dependencies\n\
          $ iex -S mix phx.server - to set up the service server",
-        project_name, VERSION, path
+        service.name, VERSION, service.path
     );
 
     println!(
         "\u{001b}[33m\nDon't forget to update {}/README.md! \u{001b}[33m",
-        path
+        service.path
     );
 
     Ok(())
@@ -73,15 +74,15 @@ fn clone_repository(url: &str, dest: &str) -> Result<(), Error> {
 
 fn get_repo_url(is_ssh: bool) -> String {
     if is_ssh {
-        return <&str>::clone(SSH_ENDPOINT).to_owned() + REPO_NAME;
+        return SSH_URL.to_string();
     }
 
-    <&str>::clone(HTTPS_ENDPOINT).to_owned() + REPO_NAME
+    HTTPS_URL.to_string()
 }
 
-fn setup_service(name: &str, dest: &str) -> Result<()> {
-    clean_source(dest)?;
-    rename_source(name, dest)?;
+fn setup_service(service: &Service) -> Result<()> {
+    clean_source(&service.path)?;
+    rename_source(&service.name, &service.path)?;
 
     Ok(())
 }

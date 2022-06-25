@@ -33,7 +33,7 @@ enum ServiceCommand {
 
 #[derive(Args)]
 #[clap(args_conflicts_with_subcommands = true)]
-struct ServiceArgs {
+pub struct ServiceArgs {
     #[clap(parse(try_from_str=validate_project_name))]
     path: String,
     #[clap(long)]
@@ -72,8 +72,7 @@ fn main() -> Result<()> {
             ServiceCommand::New(args) => {
                 let service = setup::build_service(args);
 
-                // FIXME refactor to handle Service struct
-                setup::create_service(&new.path, true)?
+                setup::create_service(&service)?
             }
         },
     }
