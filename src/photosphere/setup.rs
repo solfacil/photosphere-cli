@@ -17,6 +17,8 @@ pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
 pub fn build_service(args: &ServiceArgs) -> Service {
     let mut default_service = Service::new();
 
+    let project_name = get_project_name(&args.path);
+
     // set deps first to filter them after
     let service = default_service
         .set_deps(vec![])
@@ -28,6 +30,8 @@ pub fn build_service(args: &ServiceArgs) -> Service {
         .set_mailer(args.no_mailer)
         .set_messaging(args.no_messaging)
         .set_monitoring(args.no_monitoring)
+        .set_name(String::from(project_name))
+        .set_path(args.path)
         .set_protocol(args.protocol)
         .set_ssh(args.ssh);
 
@@ -38,7 +42,6 @@ pub fn create_service(path: &str, ssh: bool) -> Result<()> {
     let repo_url = get_repo_url(ssh);
     clone_repository(&repo_url, path)?;
 
-    let project_name = get_project_name(path);
     setup_service(project_name, path)?;
 
     println!(

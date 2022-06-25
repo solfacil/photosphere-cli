@@ -13,6 +13,8 @@ pub struct Service {
     mailer: bool,
     messaging: bool,
     monitoring: bool,
+    name: Option<String>,
+    path: Option<String>,
     protocol: Protocol,
     ssh: bool,
 }
@@ -31,6 +33,8 @@ impl Service {
             mailer: true,
             monitoring: true,
             messaging: true,
+            name: None,
+            path: None,
             protocol: Protocol::Rest,
             ssh: false,
         }
@@ -126,6 +130,18 @@ impl Service {
 
             return self;
         }
+
+        self
+    }
+
+    pub fn set_name(&mut self, name: String) -> &mut Service {
+        self.name = Some(name);
+
+        self
+    }
+
+    pub fn set_path(&mut self, path: String) -> &mut Service {
+        self.path = Some(path);
 
         self
     }
