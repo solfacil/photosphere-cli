@@ -1,9 +1,9 @@
-use crate::photosphere::str_utils;
+use super::{setup::SNAKE_CASE_DEFAULT, str_utils};
 use anyhow::{bail, Result};
 
 pub fn validate_project_name(path: &str) -> Result<String> {
     let name = get_project_name(path);
-    let is_same_default = name.to_lowercase().eq(crate::SNAKE_CASE_DEFAULT);
+    let is_same_default = name.to_lowercase().eq(SNAKE_CASE_DEFAULT);
     let has_hifen = name.contains('-');
     let is_valid_name = name.chars().all(str_utils::is_lower_alphanumeric);
 
@@ -25,5 +25,5 @@ pub fn validate_project_name(path: &str) -> Result<String> {
 pub fn get_project_name(path: &str) -> &str {
     let path_entries = path.split('/').collect::<Vec<&str>>();
 
-    path_entries.last().unwrap_or(crate::REPO_NAME)
+    path_entries.last().unwrap_or(SNAKE_CASE_DEFAULT)
 }
