@@ -1,25 +1,23 @@
+use crate::Protocol;
+
 pub struct Service {
-    deps: Vec<Dep>,
     auth: bool, // both authentication and authorization
     database: bool,
-    monitoring: bool,
-    mailer: bool,
-    http_client: bool,
-    graphql: bool,
+    deps: Vec<Dep>,
     gettext: bool,
+    graphql: bool,
+    http_client: bool,
+    mailer: bool,
     messaging: bool,
+    monitoring: bool,
     protocol: Protocol,
+    ssh: bool,
 }
 
 struct Dep {
     name: String,
     version: Option<String>,
     git: bool,
-}
-
-enum Protocol {
-    Rest,
-    Grpc,
 }
 
 const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
@@ -85,11 +83,11 @@ impl Dep {
 }
 
 impl Service {
-    fn new(deps: Vec<Dep>) -> Service {
+    fn new() -> Service {
         Service {
-            deps,
             auth: true,
             database: true,
+            deps: vec![],
             gettext: true,
             graphql: true,
             http_client: true,
@@ -97,6 +95,7 @@ impl Service {
             monitoring: true,
             messaging: true,
             protocol: Protocol::Rest,
+            ssh: false,
         }
     }
 
@@ -163,9 +162,7 @@ impl Service {
         }
     }
 
-    fn add_grpc_deps(&mut self) {
-        // self.deps = vec![Dep{}];
-
-        ()
+    fn set_ssh(&mut self) {
+        self.ssh = true;
     }
 }
