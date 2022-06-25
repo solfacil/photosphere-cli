@@ -1,4 +1,5 @@
-use super::{str_utils, validations::get_project_name};
+use crate::ServiceArgs;
+use super::{service::Service, str_utils, validations::get_project_name};
 use anyhow::Result;
 use std::{io::Error, path::Path, process::Command};
 use walkdir::WalkDir;
@@ -12,6 +13,8 @@ const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 pub const REPO_NAME: &'static &str = &"service-template";
 pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
+
+pub fn build_service(args: &ServiceArgs) -> Service {}
 
 pub fn create_service(path: &str, ssh: bool) -> Result<()> {
     let repo_url = get_repo_url(ssh);

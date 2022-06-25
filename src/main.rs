@@ -28,12 +28,12 @@ struct Service {
 #[derive(Subcommand)]
 #[clap(arg_required_else_help = true)]
 enum ServiceCommand {
-    New(New),
+    New(ServiceArgs),
 }
 
 #[derive(Args)]
 #[clap(args_conflicts_with_subcommands = true)]
-struct New {
+struct ServiceArgs {
     #[clap(parse(try_from_str=validate_project_name))]
     path: String,
     #[clap(long)]
@@ -69,7 +69,12 @@ fn main() -> Result<()> {
 
     match &cli.cmd {
         Commands::Service(service) => match &service.cmd {
-            ServiceCommand::New(new) => setup::create_service(&new.path, true)?,
+            ServiceCommand::New(args) => {
+                let service = setup::build_service(args);
+
+                // FIXME refactor to handle Service struct
+                setup::create_service(&new.path, true)?
+            }
         },
     }
 
