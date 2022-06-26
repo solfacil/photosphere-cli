@@ -68,21 +68,20 @@ fn clone_repository(url: &str, dest: &Path) -> Result<(), Error> {
 }
 
 fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
-    let deps = de::parse_deps(&service.path);
-
-    println!("{:?}", deps);
+    let deps = de::parse_deps(&service.path)?;
 
     // set deps first to filter them after
     service
-        .set_deps(vec![])
-        .set_auth(args.no_auth)
-        .set_database(args.no_database)
-        .set_gettext(args.no_gettext)
-        .set_graphql(args.no_graphql)
-        .set_http_client(args.no_http_client)
-        .set_mailer(args.no_mailer)
-        .set_messaging(args.no_messaging)
-        .set_monitoring(args.no_monitoring);
+        .set_deps(deps)
+        .set_no_auth(args.no_auth)
+        .set_no_database(args.no_database)
+        .set_no_gettext(args.no_gettext)
+        .set_no_graphql(args.no_graphql)
+        .set_no_http_client(args.no_http_client)
+        .set_no_mailer(args.no_mailer)
+        .set_no_messaging(args.no_messaging)
+        .set_no_monitoring(args.no_monitoring)
+        .set_protocol(args.protocol);
 
     clean_source(service.path.as_path())?;
     rename_source(&service.name, &service.path)?;

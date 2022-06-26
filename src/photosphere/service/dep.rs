@@ -54,7 +54,10 @@ impl Dep {
     pub fn is_grpc(&self) -> bool {
         let lc_name = self.name.to_lowercase();
 
-        lc_name.eq("grpc") || lc_name.eq("protobuf") || lc_name.eq("google_protos")
+        lc_name.eq("grpc")
+            || lc_name.eq("protobuf")
+            || lc_name.eq("google_protos")
+            || lc_name.eq("gun")
     }
 
     pub fn is_http_client(&self) -> bool {

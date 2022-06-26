@@ -19,6 +19,9 @@ pub fn parse_deps(root: &Path) -> Result<Vec<Dep>> {
         deps.push(parse_dep(line));
     }
 
+    // remove "deps" parsed from empty chars
+    deps.retain(|d| !d.name.is_empty());
+
     Ok(deps)
 }
 

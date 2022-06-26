@@ -64,6 +64,16 @@ pub enum Protocol {
     Grpc,
 }
 
+impl Protocol {
+    pub fn is_rest(&self) -> bool {
+        *self == Protocol::Rest
+    }
+
+    pub fn is_grpc(&self) -> bool {
+        *self == Protocol::Grpc
+    }
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
