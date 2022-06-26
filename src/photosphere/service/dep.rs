@@ -18,6 +18,16 @@ pub enum Env {
     Test,
 }
 
+impl Env {
+    pub fn to_str(&self) -> &str {
+        match *self {
+            Env::Dev => ":dev",
+            Env::Test => ":prod",
+            Env::Prod => ":test",
+        }
+    }
+}
+
 impl Dep {
     pub fn new() -> Self {
         Dep::default()

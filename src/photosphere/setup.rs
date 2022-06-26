@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 
 const WITH_SPACE_DEFAULT: &'static &str = &"Service Template";
 const PASCAL_CASE_DEFAULT: &'static &str = &"ServiceTemplate";
-const KABEB_CASE_DEFAULT: &'static &str = REPO_NAME;
+const KEBAB_CASE_DEFAULT: &'static &str = REPO_NAME;
 const REPO_NAME: &'static &str = &"service-template";
 const VERSION: &str = env!("CARGO_PKG_VERSION");
 const HTTPS_URL: &'static &str = &"https://github.com/solfacil/service-template";
@@ -95,9 +95,9 @@ fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
     let lock_path = root_path.join("mix.lock");
     std::fs::remove_file(lock_path)?;
 
-    apply_config(service)?;
+    rename_source(service)?;
 
-    rename_source(&service.name, &service.path)?;
+    apply_config(service)?;
 
     Ok(())
 }
@@ -123,7 +123,7 @@ fn apply_config(service: &Service) -> Result<()> {
         service::ser::nuke_graphql(service)?;
     }
 
-    if !service.protocol.is_grpc() {
+    if service.protocol.is_rest() {
         service::ser::nuke_grpc(service)?;
     }
 
@@ -147,30 +147,74 @@ fn apply_config(service: &Service) -> Result<()> {
         service::ser::nuke_rest(service)?;
     }
 
+    service::ser::dump_deps(service)?;
+
     Ok(())
 }
 
-fn rename_source(new: &str, dest: &Path) -> Result<()> {
-    let entries = WalkDir::new(dest)
+fn rename_source(service: &Service) -> Result<()> {
+    let file_entries = WalkDir::new(&service.path)
         .into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| !e.path().is_dir());
 
-    for entry in entries {
+    for entry in file_entries {
         let data = std::fs::read_to_string(entry.path())?;
 
-        let kabeb_name = str_utils::to_kebab_case(new);
-        let with_space = str_utils::to_title(new);
-        let pascal_name = str_utils::to_pascal_case(new);
+        let kabeb_name = str_utils::to_kebab_case(&service.name);
+        let with_space = str_utils::to_title(&service.name);
+        let pascal_name = str_utils::to_pascal_case(&service.name);
 
         let new_data = data
-            .replace(SNAKE_CASE_DEFAULT, new) // new name is already snake_case
+            .replace(SNAKE_CASE_DEFAULT, &service.name) // new name is already snake_case
             .replace(WITH_SPACE_DEFAULT, &with_space)
-            .replace(KABEB_CASE_DEFAULT, &kabeb_name)
+            .replace(KEBAB_CASE_DEFAULT, &kabeb_name)
             .replace(PASCAL_CASE_DEFAULT, &pascal_name);
 
         std::fs::write(entry.path(), new_data)?;
     }
+
+    std::fs::rename(
+        service.path.as_path().join("lib").join(SNAKE_CASE_DEFAULT),
+        service.path.as_path().join("lib").join(&service.name),
+    )?;
+    std::fs::rename(
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}_web", SNAKE_CASE_DEFAULT)),
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}_web", &service.name)),
+    )?;
+
+    std::fs::rename(
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}.ex", SNAKE_CASE_DEFAULT)),
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}.ex", &service.name)),
+    )?;
+    std::fs::rename(
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}_web.ex", SNAKE_CASE_DEFAULT)),
+        service
+            .path
+            .as_path()
+            .join("lib")
+            .join(format!("{}_web.ex", &service.name)),
+    )?;
 
     Ok(())
 }

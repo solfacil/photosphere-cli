@@ -1,6 +1,64 @@
-use super::Service;
+use super::{de::DEPS_START, dep::Env, Service};
 use anyhow::Result;
 use std::fs;
+
+const GIT_URL: &'static &str = &"git@github.com:solfacil/PKG.git";
+
+// OH GOSH we need a serious parser...
+pub fn dump_deps(service: &Service) -> Result<()> {
+    let mix_path = service.path.as_path().join("mix.exs");
+    let mix_exs = fs::read_to_string(mix_path.clone())?;
+
+    let mut deps_str = "".to_owned();
+
+    for dep in service.deps.iter() {
+        let base_str = r#"{:NAME, "~> VERSION""#.to_owned();
+        let mut dep_str = base_str
+            .replace("NAME", &dep.name)
+            .replace("VERSION", &dep.version);
+
+        if let Some(envs) = &dep.envs {
+            let mut env_str = ", only: [".to_owned();
+
+            for env in envs.iter() {
+                if envs.len() == 1 {
+                    env_str.push_str(env.to_str());
+                    break;
+                }
+
+                let extra_env = &(env.to_str().to_owned() + ", ");
+                env_str.push_str(extra_env);
+            }
+
+            env_str.push(']');
+            dep_str.push_str(&env_str);
+        }
+
+        if let Some(runtime) = dep.runtime {
+            dep_str.push_str(&format!(", runtime: {}", runtime));
+        }
+
+        if dep.git {
+            let pkg_url = GIT_URL.replace("PKG", &dep.name);
+            let git_str = r#", git: "URL""#;
+            dep_str.push_str(&git_str.replace("URL", &pkg_url));
+
+            let tag_str = r#", tag: "V""#;
+            dep_str.push_str(&tag_str.replace('V', &dep.version));
+        }
+
+        if let Some(conflict) = dep.conflict {
+            dep_str.push_str(&format!(", override: {}", conflict));
+        }
+
+        dep_str.push_str("}\n");
+        deps_str.push_str(&dep_str);
+    }
+
+    fs::write(mix_path, mix_exs.replace(DEPS_START, &deps_str))?;
+
+    Ok(())
+}
 
 pub fn nuke_auth(service: &Service) -> Result<()> {
     let root = service.path.as_path();
@@ -16,8 +74,14 @@ pub fn nuke_auth(service: &Service) -> Result<()> {
 
     let no_auth: String = runtime
         .lines()
-        .filter(|l| !l.contains("Guardian"))
-        .collect();
+        .filter(|l| {
+            !l.contains("Guardian")
+                || !l.contains("GUARDIAN")
+                || !l.contains("ttl")
+                || !l.contains("issuer")
+        })
+        .collect::<Vec<&str>>()
+        .join("\n");
     fs::write(runtime_path, no_auth)?;
 
     Ok(())
@@ -33,7 +97,11 @@ pub fn nuke_database(service: &Service) -> Result<()> {
     for c in fs::read_dir(config_path)?.filter_map(|f| f.ok()) {
         let data = fs::read_to_string(c.path())?;
 
-        let new_data: String = data.lines().filter(|l| is_database_text(l)).collect();
+        let new_data: String = data
+            .lines()
+            .filter(|l| is_database_text(l))
+            .collect::<Vec<&str>>()
+            .join("\n");
 
         fs::write(c.path(), new_data)?;
     }
@@ -43,7 +111,11 @@ pub fn nuke_database(service: &Service) -> Result<()> {
         .join(format!("{}_web", service.name))
         .join("telemetry.ex");
     let telemetry = fs::read_to_string(telemetry_path.clone())?;
-    let tel_data: String = telemetry.lines().filter(|l| is_database_text(l)).collect();
+    let tel_data: String = telemetry
+        .lines()
+        .filter(|l| is_database_text(l))
+        .collect::<Vec<&str>>()
+        .join("\n");
     fs::write(telemetry_path, tel_data)?;
 
     fs::remove_file(root.join("test").join("support").join("data_case.ex"))?;
@@ -69,7 +141,8 @@ pub fn nuke_graphql(service: &Service) -> Result<()> {
             .replace(", Absinthe.Plug.Parser", "")
             .lines()
             .filter(|l| !l.contains("Absinthe") || !l.contains("GraphQL"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     fs::remove_dir_all(web_path.join("graphql"))?;
@@ -91,7 +164,8 @@ pub fn nuke_grpc(service: &Service) -> Result<()> {
         let new_data: String = data
             .lines()
             .filter(|l| !l.contains("gRPC") || !l.contains("grpc"))
-            .collect();
+            .collect::<Vec<&str>>()
+            .join("\n");
 
         fs::write(c.path(), new_data)?;
     }
@@ -102,7 +176,8 @@ pub fn nuke_grpc(service: &Service) -> Result<()> {
         fs::read_to_string(flake_path)?
             .lines()
             .filter(|l| !l.contains("grpcurl") || !l.contains("protobuf"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     let endpoint_path = web_path.join("endpoint.ex");
@@ -111,7 +186,8 @@ pub fn nuke_grpc(service: &Service) -> Result<()> {
         fs::read_to_string(endpoint_path)?
             .lines()
             .filter(|l| !l.contains("GRPC"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     fs::remove_dir_all(web_path.join("grpc"))?;
@@ -127,7 +203,8 @@ pub fn nuke_http_client(service: &Service) -> Result<()> {
         fs::read_to_string(config_path)?
             .lines()
             .filter(|l| !l.contains(":tesla"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     Ok(())
@@ -146,7 +223,8 @@ pub fn nuke_mailer(service: &Service) -> Result<()> {
         fs::read_to_string(runtime_path)?
             .lines()
             .filter(|l| !l.contains("MAILER") || !l.contains("Mailer") || !l.contains("mailer"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     fs::write(
@@ -154,7 +232,8 @@ pub fn nuke_mailer(service: &Service) -> Result<()> {
         fs::read_to_string(root.join(".env-sample"))?
             .lines()
             .filter(|l| !l.contains("MAILER"))
-            .collect::<String>(),
+            .collect::<Vec<&str>>()
+            .join("\n"),
     )?;
 
     Ok(())
@@ -175,7 +254,8 @@ pub fn nuke_messaging(service: &Service) -> Result<()> {
                     || !l.contains("brokers")
                     || !l.contains("disable_default_broker")
             })
-            .collect();
+            .collect::<Vec<&str>>()
+            .join("\n");
 
         fs::write(c.path(), new_data)?;
     }

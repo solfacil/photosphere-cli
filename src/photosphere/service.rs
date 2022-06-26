@@ -22,8 +22,6 @@ pub struct Service {
     pub(super) ssh: bool,
 }
 
-const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
-
 impl Service {
     pub fn default() -> Self {
         let default_path = PathBuf::from(&format!("./{}", SNAKE_CASE_DEFAULT));

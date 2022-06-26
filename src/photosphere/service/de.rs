@@ -2,7 +2,7 @@ use super::dep::{Dep, Env};
 use anyhow::Result;
 use std::path::Path;
 
-const DEPS_START: &'static &str = &"# start deps";
+pub const DEPS_START: &'static &str = &"# start deps";
 const DEPS_END: &'static &str = &"# end deps";
 
 pub fn parse_deps(root: &Path) -> Result<Vec<Dep>> {
