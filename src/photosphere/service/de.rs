@@ -16,27 +16,27 @@ pub fn parse_deps(root: &Path) -> Result<Vec<Dep>> {
     let mut deps = Vec::<Dep>::new();
 
     for line in raw_deps.lines() {
-        let raw_dep = line
-            .chars()
-            .filter(|c| !c.is_whitespace())
-            .collect::<String>();
-
-        deps.push(parse_dep(&raw_dep));
+        deps.push(parse_dep(line));
     }
 
     Ok(deps)
 }
 
-fn parse_dep(raw_dep: &str) -> Dep {
+fn parse_dep(line: &str) -> Dep {
     let mut default_dep = Dep::default();
 
+    let raw_dep = line
+        .chars()
+        .filter(|c| !c.is_whitespace())
+        .collect::<String>();
+
     default_dep
-        .set_conflict(parse_override(raw_dep))
-        .set_envs(parse_envs(raw_dep))
-        .set_git(parse_is_git(raw_dep))
-        .set_name(parse_name(raw_dep))
-        .set_runtime(parse_runtime(raw_dep))
-        .set_version(parse_version(raw_dep))
+        .set_conflict(parse_override(&raw_dep))
+        .set_envs(parse_envs(&raw_dep))
+        .set_git(parse_is_git(&raw_dep))
+        .set_name(parse_name(&raw_dep))
+        .set_runtime(parse_runtime(&raw_dep))
+        .set_version(parse_version(&raw_dep))
         .clone()
 }
 
@@ -97,9 +97,18 @@ fn parse_runtime(raw_dep: &str) -> Option<bool> {
 }
 
 fn parse_version(raw_dep: &str) -> String {
+    if raw_dep.contains("git:") {
+        let start = raw_dep.find("tag:").unwrap_or(0);
+
+        return raw_dep[start..]
+            .chars()
+            .filter(|c| c.is_numeric() || c.eq(&'.'))
+            .collect::<String>();
+    }
+
     raw_dep
         .chars()
-        .filter(|c| c.is_numeric())
+        .filter(|c| c.is_numeric() || c.eq(&'.'))
         .collect::<String>()
 }
 
@@ -121,5 +130,33 @@ mod tests {
         };
 
         assert_eq!(parse_dep(raw_dep), dep);
+    }
+
+    #[test]
+    fn parse_only_dep() {
+        let raw_dep = r#"{:credo, "~> 1.6", only: [:dev, :test]},"#;
+
+        let dep = parse_dep(raw_dep);
+
+        assert_eq!(dep.envs, Some(vec![Env::Dev, Env::Test]));
+    }
+
+    #[test]
+    fn parse_runtime_dep() {
+        let raw_dep = r#"{:dialyxir, "~> 1.0", runtime: false},"#;
+
+        let dep = parse_dep(raw_dep);
+
+        assert_eq!(dep.runtime, Some(false));
+    }
+
+    #[test]
+    fn parse_git_dep() {
+        let raw_dep = r#"{:database, git: "git@github.com:solfacil/database.git", tag: "0.0.7"}"#;
+
+        let dep = parse_dep(raw_dep);
+
+        assert_eq!(dep.git, true);
+        assert_eq!(dep.version, "0.0.7".to_string());
     }
 }
