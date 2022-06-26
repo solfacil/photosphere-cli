@@ -2,9 +2,10 @@ use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 use dep::Dep;
 use std::path::PathBuf;
 
+pub mod de;
 pub mod dep;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Service {
     pub(super) auth: bool, // both authentication and authorization
     pub(super) database: bool,

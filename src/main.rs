@@ -58,7 +58,7 @@ pub struct ServiceArgs {
     protocol: Protocol,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ArgEnum)]
 pub enum Protocol {
     Rest,
     Grpc,

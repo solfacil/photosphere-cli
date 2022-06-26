@@ -1,15 +1,11 @@
 use super::{
-    service::{dep::Dep, Service},
+    service::{de, dep::Dep, Service},
     str_utils,
     validations::get_project_name,
 };
 use crate::ServiceArgs;
 use anyhow::Result;
-use std::{
-    io::Error,
-    path::{Path, PathBuf},
-    process::Command,
-};
+use std::{io::Error, path::Path, process::Command};
 use walkdir::WalkDir;
 
 const WITH_SPACE_DEFAULT: &'static &str = &"Service Template";
@@ -59,8 +55,8 @@ pub fn create_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
     Ok(())
 }
 
-fn clone_repository(url: &str, dest: &PathBuf) -> Result<(), Error> {
-    let dest_os = dest.as_path().as_os_str();
+fn clone_repository(url: &str, dest: &Path) -> Result<(), Error> {
+    let dest_os = dest.as_os_str();
 
     Command::new("git")
         .arg("clone")
@@ -72,8 +68,9 @@ fn clone_repository(url: &str, dest: &PathBuf) -> Result<(), Error> {
 }
 
 fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
-    // TODO
-    // let deps = parse_deps(&service.path);
+    let deps = de::parse_deps(&service.path);
+
+    println!("{:?}", deps);
 
     // set deps first to filter them after
     service
@@ -87,7 +84,7 @@ fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
         .set_messaging(args.no_messaging)
         .set_monitoring(args.no_monitoring);
 
-    clean_source(&service.path.as_path())?;
+    clean_source(service.path.as_path())?;
     rename_source(&service.name, &service.path)?;
 
     Ok(())
