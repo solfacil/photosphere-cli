@@ -58,10 +58,20 @@ pub struct ServiceArgs {
     protocol: Protocol,
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ArgEnum)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ArgEnum)]
 pub enum Protocol {
     Rest,
     Grpc,
+}
+
+impl Protocol {
+    pub fn is_rest(&self) -> bool {
+        *self == Protocol::Rest
+    }
+
+    pub fn is_grpc(&self) -> bool {
+        *self == Protocol::Grpc
+    }
 }
 
 fn main() -> Result<()> {

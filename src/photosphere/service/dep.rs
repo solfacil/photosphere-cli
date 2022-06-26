@@ -1,19 +1,26 @@
-#[derive(Clone)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+// `Option` field for those
+// that cannot be explicit on `mix.exs`
+// but also can be `false`
 pub struct Dep {
-    conflict: bool,
-    git: bool,
-    name: String,
-    version: String,
+    pub(super) conflict: Option<bool>,
+    pub(super) envs: Option<Vec<Env>>,
+    pub(super) git: bool,
+    pub(super) name: String,
+    pub(super) runtime: Option<bool>,
+    pub(super) version: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Env {
+    Dev,
+    Prod,
+    Test,
 }
 
 impl Dep {
-    pub fn new(name: String, version: String, git: bool, conflict: bool) -> Dep {
-        Dep {
-            conflict,
-            git,
-            name,
-            version,
-        }
+    pub fn new() -> Self {
+        Dep::default()
     }
 
     pub fn is_auth(&self) -> bool {
@@ -47,7 +54,10 @@ impl Dep {
     pub fn is_grpc(&self) -> bool {
         let lc_name = self.name.to_lowercase();
 
-        lc_name.eq("grpc") || lc_name.eq("protobuf") || lc_name.eq("google_protos")
+        lc_name.eq("grpc")
+            || lc_name.eq("protobuf")
+            || lc_name.eq("google_protos")
+            || lc_name.eq("gun")
     }
 
     pub fn is_http_client(&self) -> bool {
@@ -68,5 +78,41 @@ impl Dep {
         let lc_name = self.name.to_lowercase();
 
         lc_name.contains("spandex") || lc_name.eq("prom_ex") || lc_name.eq("ex_coveralls")
+    }
+
+    pub fn set_conflict(&mut self, conflict: Option<bool>) -> &mut Dep {
+        self.conflict = conflict;
+
+        self
+    }
+
+    pub fn set_envs(&mut self, envs: Option<Vec<Env>>) -> &mut Dep {
+        self.envs = envs;
+
+        self
+    }
+
+    pub fn set_git(&mut self, is_git: bool) -> &mut Dep {
+        self.git = is_git;
+
+        self
+    }
+
+    pub fn set_name(&mut self, name: String) -> &mut Dep {
+        self.name = name;
+
+        self
+    }
+
+    pub fn set_runtime(&mut self, runtime: Option<bool>) -> &mut Dep {
+        self.runtime = runtime;
+
+        self
+    }
+
+    pub fn set_version(&mut self, version: String) -> &mut Dep {
+        self.version = version;
+
+        self
     }
 }

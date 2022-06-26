@@ -1,9 +1,11 @@
 use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 use dep::Dep;
+use std::path::PathBuf;
 
+pub mod de;
 pub mod dep;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Service {
     pub(super) auth: bool, // both authentication and authorization
     pub(super) database: bool,
@@ -15,7 +17,7 @@ pub struct Service {
     pub(super) messaging: bool,
     pub(super) monitoring: bool,
     pub(super) name: String,
-    pub(super) path: String,
+    pub(super) path: PathBuf,
     pub(super) protocol: Protocol,
     pub(super) ssh: bool,
 }
@@ -24,6 +26,8 @@ const GIT_URL: &'static &str = &"git@github.com:solfacil/REPLACE.git";
 
 impl Service {
     pub fn default() -> Self {
+        let default_path = PathBuf::from(&format!("./{}", SNAKE_CASE_DEFAULT));
+
         Service {
             auth: true,
             database: true,
@@ -35,13 +39,13 @@ impl Service {
             monitoring: true,
             messaging: true,
             name: SNAKE_CASE_DEFAULT.to_string(),
-            path: SNAKE_CASE_DEFAULT.to_string(),
+            path: default_path,
             protocol: Protocol::Rest,
             ssh: false,
         }
     }
 
-    pub fn set_auth(&mut self, no_auth: bool) -> &mut Service {
+    pub fn set_no_auth(&mut self, no_auth: bool) -> &mut Service {
         if no_auth {
             self.auth = false;
             self.deps.retain(|d| !d.is_auth());
@@ -58,7 +62,7 @@ impl Service {
         self
     }
 
-    pub fn set_database(&mut self, no_database: bool) -> &mut Service {
+    pub fn set_no_database(&mut self, no_database: bool) -> &mut Service {
         if no_database {
             self.database = false;
             self.deps.retain(|d| !d.is_database());
@@ -69,7 +73,7 @@ impl Service {
         self
     }
 
-    pub fn set_gettext(&mut self, no_gettext: bool) -> &mut Service {
+    pub fn set_no_gettext(&mut self, no_gettext: bool) -> &mut Service {
         if no_gettext {
             self.gettext = false;
             self.deps.retain(|d| !d.is_gettext());
@@ -80,7 +84,7 @@ impl Service {
         self
     }
 
-    pub fn set_graphql(&mut self, no_graphql: bool) -> &mut Service {
+    pub fn set_no_graphql(&mut self, no_graphql: bool) -> &mut Service {
         if no_graphql {
             self.graphql = false;
             self.deps.retain(|d| !d.is_graphql());
@@ -91,7 +95,7 @@ impl Service {
         self
     }
 
-    pub fn set_http_client(&mut self, no_http_client: bool) -> &mut Service {
+    pub fn set_no_http_client(&mut self, no_http_client: bool) -> &mut Service {
         if no_http_client {
             self.http_client = false;
             self.deps.retain(|d| !d.is_http_client());
@@ -102,7 +106,7 @@ impl Service {
         self
     }
 
-    pub fn set_mailer(&mut self, no_mailer: bool) -> &mut Service {
+    pub fn set_no_mailer(&mut self, no_mailer: bool) -> &mut Service {
         if no_mailer {
             self.mailer = false;
             self.deps.retain(|d| !d.is_mailer());
@@ -113,7 +117,7 @@ impl Service {
         self
     }
 
-    pub fn set_messaging(&mut self, no_messaging: bool) -> &mut Service {
+    pub fn set_no_messaging(&mut self, no_messaging: bool) -> &mut Service {
         if no_messaging {
             self.messaging = false;
             self.deps.retain(|d| !d.is_messaging());
@@ -124,7 +128,7 @@ impl Service {
         self
     }
 
-    pub fn set_monitoring(&mut self, no_monitoring: bool) -> &mut Service {
+    pub fn set_no_monitoring(&mut self, no_monitoring: bool) -> &mut Service {
         if no_monitoring {
             self.monitoring = false;
             self.deps.retain(|d| !d.is_monitoring());
@@ -142,26 +146,23 @@ impl Service {
     }
 
     pub fn set_path(&mut self, path: String) -> &mut Service {
-        self.path = path;
+        self.path = PathBuf::from(&path);
 
         self
     }
 
     pub fn set_protocol(&mut self, protocol: Protocol) -> &mut Service {
-        match protocol {
-            Protocol::Rest => {
-                self.protocol = protocol;
-                set_no_grpc(self);
+        if protocol.is_grpc() {
+            self.protocol = protocol;
+            self.set_no_rest();
 
-                self
-            }
-            Protocol::Grpc => {
-                self.protocol = protocol;
-                set_no_rest(self);
-
-                self
-            }
+            return self;
         }
+
+        self.protocol = protocol;
+        self.set_no_grpc();
+
+        self
     }
 
     pub fn set_ssh(&mut self, ssh: bool) -> &mut Service {
@@ -170,18 +171,197 @@ impl Service {
 
         self
     }
+
+    fn set_no_grpc(&mut self) {
+        // TODO remove all grpc stuff
+        self.deps.retain(|d| !d.is_grpc())
+    }
+
+    fn set_no_rest(&mut self) {
+        // TODO remove all phoenix stuff
+        self.set_no_graphql(true);
+    }
 }
 
-fn set_no_grpc(service: &mut Service) -> &mut Service {
-    // TODO remove all grpc stuff
-    service.deps.retain(|d| !d.is_grpc());
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::path::Path;
 
-    service
-}
+    const CARGO_ROOT: &str = env!("CARGO_MANIFEST_DIR");
 
-fn set_no_rest(service: &mut Service) -> &mut Service {
-    // TODO remove all phoenix stuff
-    service.set_graphql(false);
+    #[test]
+    fn set_no_auth() {
+        let mut default_service = Service::default();
 
-    service
+        assert_eq!(default_service.auth, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_auth(true);
+
+        assert_eq!(service.auth, false);
+        assert!(service.deps.iter().all(|d| !d.is_auth()));
+    }
+
+    #[test]
+    fn set_no_database() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.database, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_database(true);
+
+        assert_eq!(service.database, false);
+        assert!(service.deps.iter().all(|d| !d.is_database()));
+    }
+
+    #[test]
+    fn set_no_gettext() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.gettext, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_gettext(true);
+
+        assert_eq!(service.gettext, false);
+        assert!(service.deps.iter().all(|d| !d.is_gettext()));
+    }
+
+    #[test]
+    fn set_no_graphql() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.graphql, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_graphql(true);
+
+        assert_eq!(service.graphql, false);
+        assert!(service.deps.iter().all(|d| !d.is_graphql()));
+    }
+
+    #[test]
+    fn set_no_http_client() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.http_client, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_http_client(true);
+
+        assert_eq!(service.http_client, false);
+        assert!(service.deps.iter().all(|d| !d.is_http_client()));
+    }
+
+    #[test]
+    fn set_no_mailer() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.mailer, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_mailer(true);
+
+        assert_eq!(service.mailer, false);
+        assert!(service.deps.iter().all(|d| !d.is_mailer()));
+    }
+
+    #[test]
+    fn set_no_messaging() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.messaging, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_messaging(true);
+
+        assert_eq!(service.messaging, false);
+        assert!(service.deps.iter().all(|d| !d.is_messaging()));
+    }
+
+    #[test]
+    fn set_no_monitoring() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.monitoring, true);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_no_monitoring(true);
+
+        assert_eq!(service.monitoring, false);
+        assert!(service.deps.iter().all(|d| !d.is_monitoring()));
+    }
+
+    #[test]
+    fn set_name() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.name, "service_template".to_string());
+
+        let name = "a_name".to_string();
+        let service = default_service.set_name(name.clone());
+
+        assert_eq!(service.name, name);
+    }
+
+    #[test]
+    fn set_path() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.path, Path::new("./service_template"));
+
+        let path = Path::new("a_path").to_str().unwrap_or_default().to_string();
+        let service = default_service.set_path(path.clone());
+
+        assert_eq!(service.path, Path::new(&path));
+    }
+
+    #[test]
+    fn set_rest_protocol() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.protocol, Protocol::Rest);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps);
+
+        // IMPROVEME on
+        assert!(service.deps.iter().any(|d| d.is_graphql()));
+    }
+
+    #[test]
+    fn set_grpc_protocol() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.protocol, Protocol::Rest);
+
+        let path = Path::new(CARGO_ROOT).join("priv");
+        let deps = de::parse_deps(path.as_path()).unwrap();
+        let service = default_service.set_deps(deps).set_protocol(Protocol::Grpc);
+
+        assert_eq!(service.protocol, Protocol::Grpc);
+        assert!(service.deps.iter().any(|d| d.is_grpc()));
+    }
+
+    #[test]
+    fn set_ssh() {
+        let mut default_service = Service::default();
+
+        assert_eq!(default_service.ssh, false);
+
+        let service = default_service.set_ssh(true);
+
+        assert_eq!(service.ssh, true);
+    }
 }
