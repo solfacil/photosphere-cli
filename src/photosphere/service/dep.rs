@@ -38,10 +38,6 @@ impl Dep {
             || lc_name.eq("postgrex")
     }
 
-    pub fn is_gettext(&self) -> bool {
-        self.name.to_lowercase().eq("gettext")
-    }
-
     pub fn is_graphql(&self) -> bool {
         let lc_name = self.name.to_lowercase();
 

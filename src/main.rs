@@ -43,8 +43,6 @@ pub struct ServiceArgs {
     #[clap(long)]
     no_database: bool,
     #[clap(long)]
-    no_gettext: bool,
-    #[clap(long)]
     no_graphql: bool,
     #[clap(long)]
     no_http_client: bool,

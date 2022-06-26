@@ -4,13 +4,13 @@ use std::path::PathBuf;
 
 pub mod de;
 pub mod dep;
+pub mod ser;
 
 #[derive(Clone, Debug)]
 pub struct Service {
     pub(super) auth: bool, // both authentication and authorization
     pub(super) database: bool,
     pub(super) deps: Vec<Dep>,
-    pub(super) gettext: bool,
     pub(super) graphql: bool,
     pub(super) http_client: bool,
     pub(super) mailer: bool,
@@ -32,7 +32,6 @@ impl Service {
             auth: true,
             database: true,
             deps: vec![],
-            gettext: true,
             graphql: true,
             http_client: true,
             mailer: true,
@@ -66,17 +65,6 @@ impl Service {
         if no_database {
             self.database = false;
             self.deps.retain(|d| !d.is_database());
-
-            return self;
-        }
-
-        self
-    }
-
-    pub fn set_no_gettext(&mut self, no_gettext: bool) -> &mut Service {
-        if no_gettext {
-            self.gettext = false;
-            self.deps.retain(|d| !d.is_gettext());
 
             return self;
         }
@@ -216,20 +204,6 @@ mod tests {
 
         assert_eq!(service.database, false);
         assert!(service.deps.iter().all(|d| !d.is_database()));
-    }
-
-    #[test]
-    fn set_no_gettext() {
-        let mut default_service = Service::default();
-
-        assert_eq!(default_service.gettext, true);
-
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
-        let service = default_service.set_deps(deps).set_no_gettext(true);
-
-        assert_eq!(service.gettext, false);
-        assert!(service.deps.iter().all(|d| !d.is_gettext()));
     }
 
     #[test]
