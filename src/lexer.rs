@@ -238,37 +238,25 @@ fn is_delim(c: &char) -> bool {
 }
 
 fn is_operator(o: &char) -> bool {
-    o.eq(&'-')
-        || o.eq(&'+')
-        || o.eq(&'/')
-        || o.eq(&'^')
-        || o.eq(&'*')
-        || o.eq(&'>')
-        || o.eq(&'<')
-        || o.eq(&'=')
-        || o.eq(&'\\')
-        || o.eq(&'~')
-        || o.eq(&'!')
-        || o.eq(&'|')
-        || o.eq(&'&')
-        || o.eq(&':')
-        || o.eq(&'.')
+    o.is_ascii_punctuation()
+        && !o.eq(&'`')
+        && !o.eq(&'_')
+        && !o.eq(&'@')
+        && !o.eq(&',')
+        && !o.eq(&';')
+        && !o.eq(&'#')
 }
 
 fn is_identifier(c: &char) -> bool {
-    c.is_alphanumeric() && !is_non_identifier(c)
+    (c.is_alphanumeric() || is_extra_literal(c)) || !c.is_ascii_punctuation()
 }
 
 fn is_number(c: &char) -> bool {
     c.is_ascii_alphanumeric() || c.eq(&'.')
 }
 
-fn is_non_identifier(c: &char) -> bool {
-    !c.is_whitespace() || is_extra_literal(c) || !is_delim(c) || !is_operator(c)
-}
-
 fn is_extra_literal(c: &char) -> bool {
-    c.eq(&'_') || c.eq(&'@') || c.eq(&',')
+    c.eq(&'_') || c.eq(&'@')
 }
 
 #[cfg(test)]
@@ -455,7 +443,7 @@ mod take {
 }
 
 #[cfg(test)]
-mod lexer {
+mod tokenize {
     use super::*;
 
     #[test]
@@ -466,6 +454,7 @@ mod lexer {
         let single_tokens = &tokenize(&mut Lexer::new(single)).unwrap();
         let pair_tokens = &tokenize(&mut Lexer::new(pair)).unwrap();
 
+        println!("{:?}", pair_tokens);
         assert_eq!(single_tokens.len(), 2);
         assert_eq!(pair_tokens.len(), 3);
 
@@ -610,16 +599,17 @@ mod lexer {
             .any(|t| t.kind().is_operator()));
     }
 
-    use std::path::Path;
+    // use std::path::Path;
 
-    #[test]
-    fn read_mix_exs() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let p = root.join("priv").join("mix.exs");
-        let c = std::fs::read_to_string(p).unwrap();
-        let tokens = tokenize(&mut Lexer::new(&c)).unwrap();
-        std::fs::write(root.join("tokens.txt"), format!("{:?}", tokens)).unwrap();
-
-        assert!(true);
-    }
+    // for manual token checking
+    // #[test]
+    // fn read_mix_exs() {
+    //     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    //     let p = root.join("priv").join("mix.exs");
+    //     let c = std::fs::read_to_string(p).unwrap();
+    //     let tokens = tokenize(&mut Lexer::new(&c)).unwrap();
+    //     std::fs::write(root.join("tokens.txt"), format!("{:?}", tokens)).unwrap();
+    //
+    //     assert!(true);
+    // }
 }
