@@ -39,6 +39,7 @@ impl Lexer {
 
         while let Some(ch) = self.read() {
             if !pred(ch) {
+                // self.cursor -= 1;
                 break;
             }
 
@@ -50,6 +51,22 @@ impl Lexer {
         }
 
         Some(string)
+    }
+
+    // read N chars
+    fn take(&mut self, n: usize) -> Option<String> {
+        let mut buff = String::new();
+
+        for _ in 0..n {
+            let ch = *self.read()?;
+            buff.push(ch);
+        }
+
+        if buff.is_empty() {
+            return None;
+        }
+
+        Some(buff)
     }
 
     // "look ahead" to a N single char
@@ -81,11 +98,11 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
 
         // Order here matters
         match lex.peek() {
+            Some(c) if c.eq(&',') => read_comma(lex, &mut tokens),
             Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
             Some(c) if is_operator(c) => read_operator(lex, &mut tokens),
             Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
-            Some(c) if c.eq(&'\'') => read_charlist(lex, &mut tokens),
-            Some(c) if c.eq(&'"') => read_string(lex, &mut tokens),
+            Some(c) if is_quote(c) => read_quoted(lex, &mut tokens),
             Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
             Some(c) if is_delim(c) => read_delim(lex, &mut tokens),
             Some(c) if is_identifier(c) => read_identifier(lex, &mut tokens),
@@ -96,8 +113,16 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
     }
 }
 
+fn read_comma(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(c) = lex.read() {
+        tokens.push(Token::new(TokenKind::Comma, Some(c.to_string())))
+    }
+}
+
 fn read_char(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(s) = lex.read_while(is_identifier) {
+    lex.read().unwrap();
+    if let Some(c) = lex.read_while(|c| c.is_alphanumeric() && !c.eq(&'?')) {
+        let s = '?'.to_string() + &c;
         tokens.push(Token::new(TokenKind::Char, Some(s)))
     }
 }
@@ -108,54 +133,50 @@ fn read_atom(lex: &mut Lexer, tokens: &mut Tokens) {
     }
 }
 
-// IMPROVE ME strings and charlists reading are basically the same
-fn read_charlist(lex: &mut Lexer, tokens: &mut Tokens) {
-    match (lex.peek(), lex.peek_ahead(1)) {
-        (Some('\''), Some('\'')) => {
-            // gambs time!!!
-            let init = r#"''"#;
-            let end = r#"'''"#;
-            lex.read().unwrap();
-            lex.read().unwrap();
-            lex.read().unwrap();
-            if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
-                let lexeme = init.to_string() + &s + end;
-                tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
-            }
-        }
-        (Some('\''), _) => {
-            lex.read().unwrap();
-            if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
-                let lexeme = '\''.to_string() + &s + &('\''.to_string());
-                tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
-            }
-        }
-        _ => (),
+fn read_quoted(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(charlist) = read_charlist(lex) {
+        tokens.push(Token::new(TokenKind::Charlist, Some(charlist)))
+    } else if let Some(string) = read_string(lex) {
+        tokens.push(Token::new(TokenKind::String, Some(string)))
     }
 }
 
-fn read_string(lex: &mut Lexer, tokens: &mut Tokens) {
+// IMPROVE ME strings and charlists reading are basically the same
+fn read_charlist(lex: &mut Lexer) -> Option<String> {
+    match (lex.peek(), lex.peek_ahead(1)) {
+        (Some('\''), Some('\'')) => {
+            let init = lex.take(3)?;
+            let charlist = lex.read_while(|c| !c.eq(&'\''))?;
+            let end = lex.take(3)?;
+
+            Some(init + &charlist + &end)
+        }
+        (Some('\''), _) => {
+            let quote = lex.read()?.to_string();
+            let charlist = lex.read_while(|c| !c.eq(&'\''))?;
+
+            Some(quote.clone() + &charlist + &quote)
+        }
+        _ => None,
+    }
+}
+
+fn read_string(lex: &mut Lexer) -> Option<String> {
     match (lex.peek(), lex.peek_ahead(1)) {
         (Some('"'), Some('"')) => {
-            // gambs time!!!
-            lex.read().unwrap();
-            lex.read().unwrap();
-            lex.read().unwrap();
-            let init = r#""""#;
-            let end = r#"""""#;
-            if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
-                let lexeme = init.to_string() + &s + end;
-                tokens.push(Token::new(TokenKind::String, Some(lexeme)))
-            }
+            let init = lex.take(3)?;
+            let string = lex.read_while(|c| !c.eq(&'"'))?;
+            let end = lex.take(3)?;
+
+            Some(init + &string + &end)
         }
         (Some('"'), _) => {
-            lex.read().unwrap();
-            if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
-                let lexeme = '"'.to_string() + &s + "\"";
-                tokens.push(Token::new(TokenKind::String, Some(lexeme)))
-            }
+            let quote = lex.read()?.to_string();
+            let string = lex.read_while(|c| !c.eq(&'"'))?;
+
+            Some(quote.clone() + &string + &quote)
         }
-        _ => (),
+        _ => None,
     }
 }
 
@@ -197,6 +218,10 @@ fn read_operator(lex: &mut Lexer, tokens: &mut Tokens) {
     }
 }
 
+fn is_quote(c: &char) -> bool {
+    c.eq(&'\'') || c.eq(&'"')
+}
+
 fn is_bool(b: &str) -> bool {
     b.eq("true") || b.eq("false") || b.eq("nil")
 }
@@ -231,12 +256,19 @@ fn is_operator(o: &char) -> bool {
 }
 
 fn is_identifier(c: &char) -> bool {
-    (!c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric() || c.eq(&'@'))
-        && (!is_delim(&c) || !is_operator(c))
+    c.is_alphanumeric() && !is_non_identifier(c)
 }
 
 fn is_number(c: &char) -> bool {
     c.is_ascii_alphanumeric() || c.eq(&'.')
+}
+
+fn is_non_identifier(c: &char) -> bool {
+    !c.is_whitespace() || is_extra_literal(c) || !is_delim(c) || !is_operator(c)
+}
+
+fn is_extra_literal(c: &char) -> bool {
+    c.eq(&'_') || c.eq(&'@') || c.eq(&',')
 }
 
 #[cfg(test)]
@@ -317,10 +349,46 @@ mod peek {
     #[test]
     fn not_done() {
         let mut lex = Lexer::new("abc");
-
         lex.read();
 
         assert_eq!(lex.peek(), Some(&'b'))
+    }
+
+    #[test]
+    fn id_done() {
+        let mut lex = Lexer::new("abc");
+        lex.read();
+        lex.read();
+        lex.read();
+
+        assert_eq!(lex.peek(), None)
+    }
+}
+
+#[cfg(test)]
+mod peek_ahead {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let lex = Lexer::new("");
+        assert_eq!(lex.peek_ahead(1), None);
+    }
+
+    #[test]
+    fn not_done() {
+        let mut lex = Lexer::new("abc213");
+        lex.read();
+        assert_eq!(lex.peek_ahead(1), Some(&'c'));
+        assert_eq!(lex.peek_ahead(2), Some(&'2'));
+        assert_eq!(lex.peek_ahead(10), None);
+    }
+
+    #[test]
+    fn done() {
+        let mut lex = Lexer::new("a");
+        lex.read();
+        assert_eq!(lex.peek_ahead(1), None);
     }
 }
 
@@ -333,7 +401,7 @@ mod read {
         let mut lex = Lexer::new("");
 
         assert_eq!(lex.read(), None);
-        assert_eq!(lex.cursor, 0)
+        assert_eq!(lex.cursor, 0);
     }
 
     #[test]
@@ -341,7 +409,7 @@ mod read {
         let mut lex = Lexer::new("abc");
 
         assert_eq!(lex.read(), Some(&'a'));
-        assert_eq!(lex.cursor, 1)
+        assert_eq!(lex.cursor, 1);
     }
 
     #[test]
@@ -353,7 +421,36 @@ mod read {
         lex.read();
 
         assert_eq!(lex.read(), None);
-        assert_eq!(lex.cursor, 3)
+        assert_eq!(lex.cursor, 3);
+    }
+}
+
+#[cfg(test)]
+mod take {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let mut lex = Lexer::new("");
+        assert_eq!(lex.take(1), None);
+        assert_eq!(lex.cursor, 0);
+    }
+
+    #[test]
+    fn not_done() {
+        let mut lex = Lexer::new("abc");
+        assert_eq!(lex.take(2), Some("ab".to_string()));
+        assert_eq!(lex.cursor, 2);
+    }
+
+    #[test]
+    fn done() {
+        let mut lex = Lexer::new("abc");
+        lex.read();
+        lex.read();
+        lex.read();
+        assert_eq!(lex.take(1), None);
+        assert_eq!(lex.cursor, 3);
     }
 }
 
@@ -438,12 +535,22 @@ mod lexer {
     }
 
     #[test]
+    fn should_read_char() {
+        let ch = "?a ?é ?aaa";
+        let tokens = tokenize(&mut Lexer::new(ch)).unwrap();
+        assert!(tokens[0].kind().is_char());
+        assert!(tokens[1].kind().is_char());
+        assert!(tokens[2].kind().is_illegal());
+    }
+
+    #[test]
     fn should_read_bool() {
         let b = "true false nil";
         let tokens = tokenize(&mut Lexer::new(b)).unwrap();
-        assert!(tokens[..tokens.len() - 1]
-            .iter()
-            .all(|t| t.kind().is_boolean()));
+        assert!(tokens[0].kind().is_boolean());
+        assert!(tokens[1].kind().is_boolean());
+        assert!(tokens[2].kind().is_boolean());
+        assert!(tokens[3].kind().is_eof());
     }
 
     #[test]
@@ -465,7 +572,7 @@ mod lexer {
     #[test]
     fn should_read_complex_string() {
         let complex = r#"
-            """ola"""
+            """\nola\n"""
             "#;
         let tokens = tokenize(&mut Lexer::new(complex)).unwrap();
         assert!(tokens.iter().any(|t| t.kind().is_string()));
@@ -501,5 +608,18 @@ mod lexer {
             .iter()
             .filter(|t| !t.kind().is_whitespace())
             .any(|t| t.kind().is_operator()));
+    }
+
+    use std::path::Path;
+
+    #[test]
+    fn read_mix_exs() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let p = root.join("priv").join("mix.exs");
+        let c = std::fs::read_to_string(p).unwrap();
+        let tokens = tokenize(&mut Lexer::new(&c)).unwrap();
+        std::fs::write(root.join("tokens.txt"), format!("{:?}", tokens)).unwrap();
+
+        assert!(true);
     }
 }

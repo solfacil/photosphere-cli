@@ -10,6 +10,7 @@ pub enum TokenKind {
     Boolean, // bools are atoms although
     Char,
     Charlist,
+    Comma,
     Delimiter,
     EOF,
     Identifier,
@@ -53,6 +54,10 @@ impl TokenKind {
 
     pub fn is_charlist(&self) -> bool {
         matches!(self, TokenKind::Charlist)
+    }
+
+    pub fn is_comma(&self) -> bool {
+        matches!(self, TokenKind::Comma)
     }
 
     pub fn is_delimiter(&self) -> bool {
