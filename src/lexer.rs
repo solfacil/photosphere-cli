@@ -33,20 +33,16 @@ impl Lexer {
 
     fn read_while<P>(&mut self, mut pred: P) -> Option<String>
     where
-        P: FnMut(char) -> bool,
+        P: FnMut(&char) -> bool,
     {
         let mut string = String::new();
 
-        if let Some(fst) = self.read() {
-            string.push(*fst);
-
-            while let Some(ch) = self.read() {
-                if !pred(*ch) {
-                    break;
-                }
-
-                string.push(*ch);
+        while let Some(ch) = self.read() {
+            if !pred(ch) {
+                break;
             }
+
+            string.push(*ch);
         }
 
         if string.is_empty() {
@@ -86,13 +82,13 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
         // Order here matters
         match lex.peek() {
             Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
-            Some(c) if is_operator(*c) => read_operator(lex, &mut tokens),
+            Some(c) if is_operator(c) => read_operator(lex, &mut tokens),
             Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
             Some(c) if c.eq(&'\'') => read_charlist(lex, &mut tokens),
             Some(c) if c.eq(&'"') => read_string(lex, &mut tokens),
             Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
             Some(c) if is_delim(c) => read_delim(lex, &mut tokens),
-            Some(c) if is_identifier(*c) => read_identifier(lex, &mut tokens),
+            Some(c) if is_identifier(c) => read_identifier(lex, &mut tokens),
             Some(c) if c.is_whitespace() => read_whitespace(lex, &mut tokens),
             Some(_) => read_illegal(lex, &mut tokens),
             None => continue,
@@ -118,14 +114,19 @@ fn read_charlist(lex: &mut Lexer, tokens: &mut Tokens) {
         (Some('\''), Some('\'')) => {
             // gambs time!!!
             let init = r#"''"#;
+            let end = r#"'''"#;
+            lex.read().unwrap();
+            lex.read().unwrap();
+            lex.read().unwrap();
             if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
-                let lexeme = init.to_string() + &s + init;
+                let lexeme = init.to_string() + &s + end;
                 tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
             }
         }
         (Some('\''), _) => {
+            lex.read().unwrap();
             if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
-                let lexeme = '\''.to_string() + &s;
+                let lexeme = '\''.to_string() + &s + &('\''.to_string());
                 tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
             }
         }
@@ -137,15 +138,20 @@ fn read_string(lex: &mut Lexer, tokens: &mut Tokens) {
     match (lex.peek(), lex.peek_ahead(1)) {
         (Some('"'), Some('"')) => {
             // gambs time!!!
+            lex.read().unwrap();
+            lex.read().unwrap();
+            lex.read().unwrap();
             let init = r#""""#;
+            let end = r#"""""#;
             if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
-                let lexeme = init.to_string() + &s + init;
+                let lexeme = init.to_string() + &s + end;
                 tokens.push(Token::new(TokenKind::String, Some(lexeme)))
             }
         }
         (Some('"'), _) => {
+            lex.read().unwrap();
             if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
-                let lexeme = '"'.to_string() + &s;
+                let lexeme = '"'.to_string() + &s + "\"";
                 tokens.push(Token::new(TokenKind::String, Some(lexeme)))
             }
         }
@@ -154,7 +160,7 @@ fn read_string(lex: &mut Lexer, tokens: &mut Tokens) {
 }
 
 fn read_whitespace(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(s) = lex.read_while(char::is_whitespace) {
+    if let Some(s) = lex.read_while(|c| c.is_whitespace()) {
         tokens.push(Token::new(TokenKind::WhiteSpace, Some(s)))
     }
 }
@@ -206,7 +212,7 @@ fn is_delim(c: &char) -> bool {
         || c.eq(&'#')
 }
 
-fn is_operator(o: char) -> bool {
+fn is_operator(o: &char) -> bool {
     o.eq(&'-')
         || o.eq(&'+')
         || o.eq(&'/')
@@ -224,11 +230,12 @@ fn is_operator(o: char) -> bool {
         || o.eq(&'.')
 }
 
-fn is_identifier(c: char) -> bool {
-    !c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric() || c.eq(&'@')
+fn is_identifier(c: &char) -> bool {
+    (!c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric() || c.eq(&'@'))
+        && (!is_delim(&c) || !is_operator(c))
 }
 
-fn is_number(c: char) -> bool {
+fn is_number(c: &char) -> bool {
     c.is_ascii_alphanumeric() || c.eq(&'.')
 }
 
