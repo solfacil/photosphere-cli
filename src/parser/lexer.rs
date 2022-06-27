@@ -83,10 +83,11 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
 
         match lex.peek() {
             Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
+            Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
+            Some(c) if is_delim(c) => read_delim(lex, &mut tokens),
+            Some(c) if is_identifier(*c) => read_identifier(lex, &mut tokens),
             Some(c) if c.eq(&'"') => unimplemented!(),
             Some(c) if c.is_whitespace() => read_whitespace(lex, &mut tokens),
-            Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
-            Some(c) if c.is_alphabetic() => unimplemented!(),
             Some(_) => continue,
             None => continue,
         }
@@ -111,12 +112,41 @@ fn read_number(lex: &mut Lexer, tokens: &mut Tokens) {
     }
 }
 
-fn is_number(c: char) -> bool {
-    c.is_ascii_alphanumeric() || c.eq(&'.')
+fn read_identifier(lex: &mut Lexer, tokens: &mut Tokens) {
+    match lex.read_while(is_identifier) {
+        Some(b) if is_bool(&b) => tokens.push(Token::new(TokenKind::Boolean, Some(b))),
+        Some(s) => tokens.push(Token::new(TokenKind::Identifier, Some(s))),
+        _ => (),
+    }
+}
+
+fn read_delim(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(c) = lex.read() {
+        tokens.push(Token::new(TokenKind::Delimiter, Some(c.to_string())))
+    }
+}
+
+fn is_bool(b: &str) -> bool {
+    b.eq("true") || b.eq("false") || b.eq("nil")
+}
+
+fn is_delim(c: &char) -> bool {
+    c.eq(&'(')
+        || c.eq(&')')
+        || c.eq(&'[')
+        || c.eq(&']')
+        || c.eq(&'{')
+        || c.eq(&'}')
+        || c.eq(&'%')
+        || c.eq(&'#')
 }
 
 fn is_identifier(c: char) -> bool {
-    c.is_ascii_punctuation() || c.is_alphanumeric()
+    !c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric()
+}
+
+fn is_number(c: char) -> bool {
+    c.is_ascii_alphanumeric() || c.eq(&'.')
 }
 
 #[cfg(test)]
@@ -306,5 +336,32 @@ mod lexer {
         let token = &tokenize(&mut Lexer::new(hex)).unwrap()[0];
         assert_eq!(token.kind(), TokenKind::Number);
         assert_eq!(token.lexeme(), Some(hex.to_string()));
+    }
+
+    #[test]
+    fn should_read_delims() {
+        let delims = "%#{}()[]";
+        let tokens = tokenize(&mut Lexer::new(delims)).unwrap();
+        assert!(tokens[..tokens.len() - 1]
+            .iter()
+            .all(|t| t.kind().is_delimiter()));
+    }
+
+    #[test]
+    fn should_read_bool() {
+        let b = "true false nil";
+        let tokens = tokenize(&mut Lexer::new(b)).unwrap();
+        assert!(tokens[..tokens.len() - 1]
+            .iter()
+            .all(|t| t.kind().is_boolean()));
+    }
+
+    #[test]
+    fn should_read_identifier() {
+        let i = "hello ola12 _vrum";
+        let tokens = tokenize(&mut Lexer::new(i)).unwrap();
+        assert!(tokens[..tokens.len() - 1]
+            .iter()
+            .all(|t| t.kind().is_identifier()));
     }
 }
