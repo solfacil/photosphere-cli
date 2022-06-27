@@ -2,7 +2,7 @@ use crate::photosphere::{setup, validations::validate_project_name};
 use anyhow::Result;
 use clap::{ArgEnum, Args, Parser, Subcommand};
 
-pub mod parser;
+pub mod lexer;
 pub mod photosphere;
 
 #[derive(Parser)]

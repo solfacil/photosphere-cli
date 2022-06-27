@@ -1,6 +1,8 @@
-use super::token::{Token, TokenKind};
+use self::token::{Token, TokenKind};
 use anyhow::Result;
 use std::char;
+
+pub mod token;
 
 type Tokens = Vec<Token>;
 
@@ -82,15 +84,23 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
         }
 
         match lex.peek() {
+            Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
             Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
+            Some(c) if c.eq(&'\'') => read_charlist(lex, &mut tokens),
+            Some(c) if c.eq(&'"') => read_string(lex, &mut tokens),
             Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
             Some(c) if is_delim(c) => read_delim(lex, &mut tokens),
             Some(c) if is_identifier(*c) => read_identifier(lex, &mut tokens),
-            Some(c) if c.eq(&'"') => unimplemented!(),
             Some(c) if c.is_whitespace() => read_whitespace(lex, &mut tokens),
-            Some(_) => continue,
+            Some(_) => read_illegal(lex, &mut tokens),
             None => continue,
         }
+    }
+}
+
+fn read_char(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(s) = lex.read_while(is_identifier) {
+        tokens.push(Token::new(TokenKind::Char, Some(s)))
     }
 }
 
@@ -98,6 +108,17 @@ fn read_atom(lex: &mut Lexer, tokens: &mut Tokens) {
     if let Some(a) = lex.read_while(is_identifier) {
         tokens.push(Token::new(TokenKind::Atom, Some(a)))
     }
+}
+
+fn read_charlist(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
+        tokens.push(Token::new(TokenKind::Char, Some(s)))
+    }
+}
+
+fn read_string(lex: &mut Lexer, tokens: &mut Tokens) {
+    // match (lex.read())
+    ()
 }
 
 fn read_whitespace(lex: &mut Lexer, tokens: &mut Tokens) {
@@ -123,6 +144,12 @@ fn read_identifier(lex: &mut Lexer, tokens: &mut Tokens) {
 fn read_delim(lex: &mut Lexer, tokens: &mut Tokens) {
     if let Some(c) = lex.read() {
         tokens.push(Token::new(TokenKind::Delimiter, Some(c.to_string())))
+    }
+}
+
+fn read_illegal(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(s) = lex.read_while(|c| !c.is_whitespace()) {
+        tokens.push(Token::new(TokenKind::Illegal, Some(s)))
     }
 }
 
@@ -358,7 +385,7 @@ mod lexer {
 
     #[test]
     fn should_read_identifier() {
-        let i = "hello ola12 _vrum";
+        let i = "hello ola12 _vrum @doc defmodule";
         let tokens = tokenize(&mut Lexer::new(i)).unwrap();
         assert!(tokens[..tokens.len() - 1]
             .iter()
