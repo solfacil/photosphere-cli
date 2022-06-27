@@ -83,9 +83,11 @@ pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
             return Ok(tokens);
         }
 
+        // Order here matters
         match lex.peek() {
-            Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
             Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
+            Some(c) if is_operator(*c) => read_operator(lex, &mut tokens),
+            Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
             Some(c) if c.eq(&'\'') => read_charlist(lex, &mut tokens),
             Some(c) if c.eq(&'"') => read_string(lex, &mut tokens),
             Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
@@ -110,15 +112,45 @@ fn read_atom(lex: &mut Lexer, tokens: &mut Tokens) {
     }
 }
 
+// IMPROVE ME strings and charlists reading are basically the same
 fn read_charlist(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
-        tokens.push(Token::new(TokenKind::Char, Some(s)))
+    match (lex.peek(), lex.peek_ahead(1)) {
+        (Some('\''), Some('\'')) => {
+            // gambs time!!!
+            let init = r#"''"#;
+            if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
+                let lexeme = init.to_string() + &s + init;
+                tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
+            }
+        }
+        (Some('\''), _) => {
+            if let Some(s) = lex.read_while(|c| !c.eq(&'\'')) {
+                let lexeme = '\''.to_string() + &s;
+                tokens.push(Token::new(TokenKind::Charlist, Some(lexeme)))
+            }
+        }
+        _ => (),
     }
 }
 
 fn read_string(lex: &mut Lexer, tokens: &mut Tokens) {
-    // match (lex.read())
-    ()
+    match (lex.peek(), lex.peek_ahead(1)) {
+        (Some('"'), Some('"')) => {
+            // gambs time!!!
+            let init = r#""""#;
+            if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
+                let lexeme = init.to_string() + &s + init;
+                tokens.push(Token::new(TokenKind::String, Some(lexeme)))
+            }
+        }
+        (Some('"'), _) => {
+            if let Some(s) = lex.read_while(|c| !c.eq(&'"')) {
+                let lexeme = '"'.to_string() + &s;
+                tokens.push(Token::new(TokenKind::String, Some(lexeme)))
+            }
+        }
+        _ => (),
+    }
 }
 
 fn read_whitespace(lex: &mut Lexer, tokens: &mut Tokens) {
@@ -153,6 +185,12 @@ fn read_illegal(lex: &mut Lexer, tokens: &mut Tokens) {
     }
 }
 
+fn read_operator(lex: &mut Lexer, tokens: &mut Tokens) {
+    if let Some(o) = lex.read_while(is_operator) {
+        tokens.push(Token::new(TokenKind::Operator, Some(o)))
+    }
+}
+
 fn is_bool(b: &str) -> bool {
     b.eq("true") || b.eq("false") || b.eq("nil")
 }
@@ -168,8 +206,26 @@ fn is_delim(c: &char) -> bool {
         || c.eq(&'#')
 }
 
+fn is_operator(o: char) -> bool {
+    o.eq(&'-')
+        || o.eq(&'+')
+        || o.eq(&'/')
+        || o.eq(&'^')
+        || o.eq(&'*')
+        || o.eq(&'>')
+        || o.eq(&'<')
+        || o.eq(&'=')
+        || o.eq(&'\\')
+        || o.eq(&'~')
+        || o.eq(&'!')
+        || o.eq(&'|')
+        || o.eq(&'&')
+        || o.eq(&':')
+        || o.eq(&'.')
+}
+
 fn is_identifier(c: char) -> bool {
-    !c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric()
+    !c.is_whitespace() || c.eq(&'_') || c.is_alphanumeric() || c.eq(&'@')
 }
 
 fn is_number(c: char) -> bool {
@@ -390,5 +446,53 @@ mod lexer {
         assert!(tokens[..tokens.len() - 1]
             .iter()
             .all(|t| t.kind().is_identifier()));
+    }
+
+    #[test]
+    fn should_read_simple_string() {
+        let simple = r#""ola""#;
+        let tokens = tokenize(&mut Lexer::new(simple)).unwrap();
+        assert!(tokens.iter().any(|t| t.kind().is_string()));
+    }
+
+    #[test]
+    fn should_read_complex_string() {
+        let complex = r#"
+            """ola"""
+            "#;
+        let tokens = tokenize(&mut Lexer::new(complex)).unwrap();
+        assert!(tokens.iter().any(|t| t.kind().is_string()));
+    }
+
+    #[test]
+    fn should_read_simple_charlist() {
+        let simple = r#"'ola'"#;
+        let tokens = tokenize(&mut Lexer::new(simple)).unwrap();
+        assert!(tokens.iter().any(|t| t.kind().is_charlist()));
+    }
+
+    #[test]
+    fn should_read_complex_charlist() {
+        let complex = r#"
+            '''\nola\n'''
+            "#;
+        let tokens = tokenize(&mut Lexer::new(complex)).unwrap();
+        assert!(tokens.iter().any(|t| t.kind().is_charlist()));
+    }
+
+    #[test]
+    fn should_read_operator() {
+        let ops = r#"
+            - + / ^ ^^^ &&& & \\\ * ** !
+            && <- || ||| == != =~ === !==
+            < > <= >= |> <<< >>> <<~ ~>>
+            <~ ~> <~> <|> +++ --- <> ++ --
+            => :: | // .. .
+            "#;
+        let tokens = tokenize(&mut Lexer::new(ops)).unwrap();
+        assert!(tokens
+            .iter()
+            .filter(|t| !t.kind().is_whitespace())
+            .any(|t| t.kind().is_operator()));
     }
 }
