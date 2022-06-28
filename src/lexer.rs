@@ -359,6 +359,38 @@ mod read {
 }
 
 #[cfg(test)]
+mod is_done {
+    use super::*;
+
+    #[test]
+    fn emtpy() {
+        let lex = Lexer::new("");
+
+        assert!(lex.is_done())
+    }
+
+    #[test]
+    fn not_done() {
+        let mut lex = Lexer::new("abc");
+
+        lex.read();
+
+        assert_eq!(lex.is_done(), false)
+    }
+
+    #[test]
+    fn done() {
+        let mut lex = Lexer::new("abc");
+
+        lex.read();
+        lex.read();
+        lex.read();
+
+        assert!(lex.is_done())
+    }
+}
+
+#[cfg(test)]
 mod lexer {
     use super::*;
 
