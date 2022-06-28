@@ -74,11 +74,11 @@ impl Iterator for Lexer {
         match peek {
             ',' => read_comma(self),
             ':' => read_atom(self),
-            ch if is_operator(ch) => read_operator(self),
             '?' => read_char(self),
             ch if is_quote(ch) => read_quoted(self),
-            ch if ch.is_numeric() => read_number(self),
             ch if is_delim(ch) => read_delim(self),
+            ch if is_operator(ch) => read_operator(self),
+            ch if ch.is_numeric() => read_number(self),
             ch if is_identifier(ch) => read_identifier(self),
             ch if ch.is_whitespace() => read_whitespace(self),
             _ => None,
@@ -99,9 +99,14 @@ fn read_char(lex: &mut Lexer) -> Option<Token> {
 }
 
 fn read_atom(lex: &mut Lexer) -> Option<Token> {
-    let atom = lex.read_while(is_atom)?;
+    let next = lex.peek_ahead(1)?;
+    if next.is_alphanumeric() || is_quote(next) {
+        let atom = lex.read_while(is_atom)?;
 
-    Some(Token::new(TokenKind::Atom, atom))
+        return Some(Token::new(TokenKind::Atom, atom));
+    }
+
+    None
 }
 
 fn read_quoted(lex: &mut Lexer) -> Option<Token> {
@@ -114,7 +119,6 @@ fn read_quoted(lex: &mut Lexer) -> Option<Token> {
     None
 }
 
-// IMPROVE ME strings and charlists reading are basically the same
 fn read_charlist(lex: &mut Lexer) -> Option<String> {
     match (lex.peek(), lex.peek_ahead(1)) {
         (Some('\''), Some('\'')) => {
@@ -207,7 +211,6 @@ fn is_delim(ch: &char) -> bool {
         || ch.eq(&'{')
         || ch.eq(&'}')
         || ch.eq(&'%')
-        || ch.eq(&'#')
 }
 
 fn is_quote(ch: &char) -> bool {
@@ -222,10 +225,12 @@ fn is_operator(ch: &char) -> bool {
         && !ch.eq(&',')
         && !ch.eq(&';')
         && !ch.eq(&'#')
+        || ch.eq(&':')
 }
 
 fn is_identifier(ch: &char) -> bool {
-    (ch.is_alphanumeric() || is_extra_literal(ch)) || !ch.is_ascii_punctuation()
+    ((ch.is_alphanumeric() || is_extra_literal(ch)) || !ch.is_ascii_punctuation())
+        && !ch.is_whitespace()
 }
 
 fn is_number(ch: &char) -> bool {
@@ -467,11 +472,12 @@ mod lexer {
 
     #[test]
     fn should_read_delims() {
-        let delims = "%#{}()[]";
+        let delims = "{}()[]";
         let mut lex = Lexer::new(delims);
 
         while !lex.is_done() {
             let token = lex.next().unwrap();
+            println!("{:?}", token);
             assert!(token.kind().is_delimiter());
         }
     }
@@ -493,13 +499,9 @@ mod lexer {
         assert!(t.kind().is_boolean());
         assert_eq!(t.lexeme(), "true".to_string());
 
-        lex.next();
-
         let f = lex.next().unwrap();
         assert!(f.kind().is_boolean());
         assert_eq!(f.lexeme(), "false".to_string());
-
-        lex.next();
 
         let n = lex.next().unwrap();
         assert!(n.kind().is_boolean());
@@ -541,7 +543,9 @@ mod lexer {
     #[test]
     fn should_read_complex_string() {
         let complex = r#"
-            """\nola\n"""
+            """
+            ola
+            """
             "#;
         let token = Lexer::new(complex).next().unwrap();
         assert!(token.kind().is_string());
@@ -559,34 +563,30 @@ mod lexer {
     #[test]
     fn should_read_complex_charlist() {
         let complex = r#"
-            '''\nola\n'''
+            '''
+            ola
+            '''
             "#;
         let token = Lexer::new(complex).next().unwrap();
+        println!("{:?}", token);
         assert!(token.kind().is_charlist());
         assert_eq!(token.lexeme(), complex.to_string());
     }
 
     #[test]
     fn should_read_operator() {
-        let ops = r#"
-            - + / ^ ^^^ &&& & \\\ * ** !
-            && <- || ||| == != =~ === !==
-            < > <= >= |> <<< >>> <<~ ~>>
-            <~ ~> <~> <|> +++ --- <> ++ --
-            => :: | // .. .
-            "#;
+        let ops = r#"- + / ^ ^^^ &&& & \\\ * ** ! && <- || ||| == != =~ === !== < > <= >= |> <<< >>> <<~ ~>> <~ ~> <~> <|> +++ --- <> ++ -- => :: | // .. ."#;
         let ops_len = ops.chars().map(|c| !c.is_whitespace()).count();
         let mut lex = Lexer::new(ops);
         let mut ops_readed = 0;
 
         while !lex.is_done() {
             let token = lex.next().unwrap();
-            if token.kind().is_whitespace() {
-                ops_readed += 1;
-                continue;
-            }
 
-            assert!(token.kind().is_operator());
+            if !token.kind().is_whitespace() {
+                assert!(token.kind().is_operator());
+                ops_readed += 1;
+            }
         }
 
         assert_eq!(ops_len, ops_readed)
