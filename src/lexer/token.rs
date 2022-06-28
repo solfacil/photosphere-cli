@@ -9,13 +9,12 @@ pub enum TokenKind {
     Atom,
     Boolean, // bools are atoms although
     Char,
-    Charlist,
     Comma,
     Delimiter,
     Identifier,
     Number, // int, float, bin, oct, hex
     Operator,
-    String,
+    Quote,
     WhiteSpace,
 }
 
@@ -46,10 +45,6 @@ impl TokenKind {
         matches!(self, TokenKind::Char)
     }
 
-    pub fn is_charlist(&self) -> bool {
-        matches!(self, TokenKind::Charlist)
-    }
-
     pub fn is_comma(&self) -> bool {
         matches!(self, TokenKind::Comma)
     }
@@ -70,8 +65,8 @@ impl TokenKind {
         matches!(self, TokenKind::Operator)
     }
 
-    pub fn is_string(&self) -> bool {
-        matches!(self, TokenKind::String)
+    pub fn is_quote(&self) -> bool {
+        matches!(self, TokenKind::Quote)
     }
 
     pub fn is_whitespace(&self) -> bool {

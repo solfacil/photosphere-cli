@@ -36,7 +36,6 @@ impl Lexer {
 
         while let Some(ch) = self.read() {
             if !pred(ch) {
-                // self.cursor -= 1;
                 break;
             }
 
@@ -75,7 +74,7 @@ impl Iterator for Lexer {
             ',' => read_comma(self),
             ':' => read_atom(self),
             '?' => read_char(self),
-            ch if is_quote(ch) => read_quoted(self),
+            ch if is_quote(ch) => read_quote(self),
             ch if is_delim(ch) => read_delim(self),
             ch if is_operator(ch) => read_operator(self),
             ch if ch.is_numeric() => read_number(self),
@@ -109,56 +108,14 @@ fn read_atom(lex: &mut Lexer) -> Option<Token> {
     None
 }
 
-fn read_quoted(lex: &mut Lexer) -> Option<Token> {
-    if let Some(charlist) = read_charlist(lex) {
-        return Some(Token::new(TokenKind::Charlist, charlist));
-    } else if let Some(string) = read_string(lex) {
-        return Some(Token::new(TokenKind::String, string));
-    }
+fn read_quote(lex: &mut Lexer) -> Option<Token> {
+    let quote = lex.read()?.to_string();
 
-    None
-}
-
-fn read_charlist(lex: &mut Lexer) -> Option<String> {
-    match (lex.peek(), lex.peek_ahead(1)) {
-        (Some('\''), Some('\'')) => {
-            let init: String = lex.take(3).map(|t| t.lexeme()).collect();
-            let charlist = lex.read_while(|c| !c.eq(&'\''))?;
-            let end: String = lex.take(3).map(|t| t.lexeme()).collect();
-
-            Some(init + &charlist + &end)
-        }
-        (Some('\''), _) => {
-            let quote = lex.read()?.to_string();
-            let charlist = lex.read_while(|c| !c.eq(&'\''))?;
-
-            Some(quote.clone() + &charlist + &quote)
-        }
-        _ => None,
-    }
-}
-
-fn read_string(lex: &mut Lexer) -> Option<String> {
-    match (lex.peek(), lex.peek_ahead(1)) {
-        (Some('"'), Some('"')) => {
-            let init: String = lex.take(3).map(|t| t.lexeme()).collect();
-            let string = lex.read_while(|c| !c.eq(&'"'))?;
-            let end: String = lex.take(3).map(|t| t.lexeme()).collect();
-
-            Some(init + &string + &end)
-        }
-        (Some('"'), _) => {
-            let quote = lex.read()?.to_string();
-            let string = lex.read_while(|c| !c.eq(&'"'))?;
-
-            Some(quote.clone() + &string + &quote)
-        }
-        _ => None,
-    }
+    Some(Token::new(TokenKind::Quote, quote))
 }
 
 fn read_whitespace(lex: &mut Lexer) -> Option<Token> {
-    let ws = lex.read_while(|c| c.is_whitespace())?;
+    let ws = lex.read_while(&|c: &char| c.is_whitespace())?;
 
     Some(Token::new(TokenKind::WhiteSpace, ws))
 }
@@ -477,7 +434,6 @@ mod lexer {
 
         while !lex.is_done() {
             let token = lex.next().unwrap();
-            println!("{:?}", token);
             assert!(token.kind().is_delimiter());
         }
     }
@@ -533,44 +489,17 @@ mod lexer {
     }
 
     #[test]
-    fn should_read_simple_string() {
-        let simple = r#""ola""#;
-        let token = Lexer::new(simple).next().unwrap();
-        assert!(token.kind().is_string());
-        assert_eq!(token.lexeme(), simple.to_string());
-    }
+    fn should_read_quotes() {
+        let quotes = "'\"";
+        let mut lex = Lexer::new(quotes);
 
-    #[test]
-    fn should_read_complex_string() {
-        let complex = r#"
-            """
-            ola
-            """
-            "#;
-        let token = Lexer::new(complex).next().unwrap();
-        assert!(token.kind().is_string());
-        assert_eq!(token.lexeme(), complex.to_string());
-    }
+        let single = lex.next().unwrap();
+        assert!(single.kind().is_quote());
+        assert_eq!(single.lexeme(), "'");
 
-    #[test]
-    fn should_read_simple_charlist() {
-        let simple = r#"'ola'"#;
-        let token = Lexer::new(simple).next().unwrap();
-        assert!(token.kind().is_charlist());
-        assert_eq!(token.lexeme(), simple.to_string());
-    }
-
-    #[test]
-    fn should_read_complex_charlist() {
-        let complex = r#"
-            '''
-            ola
-            '''
-            "#;
-        let token = Lexer::new(complex).next().unwrap();
-        println!("{:?}", token);
-        assert!(token.kind().is_charlist());
-        assert_eq!(token.lexeme(), complex.to_string());
+        let double = lex.next().unwrap();
+        assert!(double.kind().is_quote());
+        assert_eq!(double.lexeme(), "\"");
     }
 
     #[test]
