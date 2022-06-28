@@ -188,7 +188,7 @@ fn read_operator(lex: &mut Lexer) -> Option<Token> {
 }
 
 fn is_atom(ch: &char) -> bool {
-    ch.eq(&':') || ch.is_alphanumeric()
+    ch.eq(&':') || ch.eq(&'"') || is_extra_literal(ch) || ch.is_alphanumeric()
 }
 
 fn is_bool_literal(b: &str) -> bool {
@@ -233,7 +233,14 @@ fn is_number(ch: &char) -> bool {
 }
 
 fn is_extra_literal(ch: &char) -> bool {
-    ch.eq(&'_') || ch.eq(&'@')
+    ch.eq(&'_')
+        || ch.eq(&'@')
+        || ch.eq(&'?')
+        || ch.eq(&'!')
+        || ch.eq(&'{')
+        || ch.eq(&'%')
+        || ch.eq(&'}')
+        || ch.eq(&'.')
 }
 
 #[cfg(test)]
