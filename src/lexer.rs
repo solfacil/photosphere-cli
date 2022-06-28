@@ -1,10 +1,7 @@
 use self::token::{Token, TokenKind};
-use anyhow::Result;
 use std::char;
 
 pub mod token;
-
-type Tokens = Vec<Token>;
 
 #[derive(Clone, Debug)]
 pub struct Lexer {
@@ -53,22 +50,6 @@ impl Lexer {
         Some(string)
     }
 
-    // read N chars
-    fn take(&mut self, n: usize) -> Option<String> {
-        let mut buff = String::new();
-
-        for _ in 0..n {
-            let ch = *self.read()?;
-            buff.push(ch);
-        }
-
-        if buff.is_empty() {
-            return None;
-        }
-
-        Some(buff)
-    }
-
     // "look ahead" to a N single char
     fn peek_ahead(&self, cursor: usize) -> Option<&char> {
         self.input.get(self.cursor + cursor)
@@ -79,75 +60,67 @@ impl Lexer {
         self.input.get(self.cursor)
     }
 
-    // EOF
     fn is_done(&self) -> bool {
-        self.cursor == self.input.len()
+       self.cursor == self.input.len() 
     }
 }
 
-// Main entry point, given a lexer
-// parses all tokens
-pub fn tokenize(lex: &mut Lexer) -> Result<Tokens> {
-    let mut tokens = Vec::<Token>::new();
+impl Iterator for Lexer{
+    type Item = Token;
 
-    loop {
-        if lex.cursor > 0 && lex.is_done() {
-            tokens.push(Token::new(TokenKind::EOF, None));
-            return Ok(tokens);
-        }
+    fn next(&mut self) -> Option<Self::Item> {
+        let peek = self.peek()?;
 
-        // Order here matters
-        match lex.peek() {
-            Some(c) if c.eq(&',') => read_comma(lex, &mut tokens),
-            Some(c) if c.eq(&':') => read_atom(lex, &mut tokens),
-            Some(c) if is_operator(c) => read_operator(lex, &mut tokens),
-            Some(c) if c.eq(&'?') => read_char(lex, &mut tokens),
-            Some(c) if is_quote(c) => read_quoted(lex, &mut tokens),
-            Some(c) if c.is_numeric() => read_number(lex, &mut tokens),
-            Some(c) if is_delim(c) => read_delim(lex, &mut tokens),
-            Some(c) if is_identifier(c) => read_identifier(lex, &mut tokens),
-            Some(c) if c.is_whitespace() => read_whitespace(lex, &mut tokens),
-            Some(_) => read_illegal(lex, &mut tokens),
-            None => continue,
-        }
+        match peek {
+            ',' => read_comma(self),
+            ':' => read_atom(self),
+            ch if is_operator(ch) => read_operator(self),
+            '?' => read_char(self),
+            ch if is_quote(ch) => read_quoted(self),
+            ch if ch.is_numeric() => read_number(self),
+            ch if is_delim(ch) => read_delim(self),
+            ch if is_identifier(ch) => read_identifier(self),
+            ch if ch.is_whitespace() => read_whitespace(self),
+            _ => None,
+        } 
     }
 }
 
-fn read_comma(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(c) = lex.read() {
-        tokens.push(Token::new(TokenKind::Comma, Some(c.to_string())))
-    }
+fn read_comma(lex: &mut Lexer) -> Option<Token> {
+    let comma = lex.read()?.to_string();
+
+    Some(Token::new(TokenKind::Comma, comma))
 }
 
-fn read_char(lex: &mut Lexer, tokens: &mut Tokens) {
-    lex.read().unwrap();
-    if let Some(c) = lex.read_while(|c| c.is_alphanumeric() && !c.eq(&'?')) {
-        let s = '?'.to_string() + &c;
-        tokens.push(Token::new(TokenKind::Char, Some(s)))
-    }
+fn read_char(lex: &mut Lexer) -> Option<Token> {
+    let char = lex.read_while(is_char)?;
+
+    Some(Token::new(TokenKind::Char, char))
 }
 
-fn read_atom(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(a) = lex.read_while(is_identifier) {
-        tokens.push(Token::new(TokenKind::Atom, Some(a)))
-    }
+fn read_atom(lex: &mut Lexer) -> Option<Token> {
+    let atom = lex.read_while(is_atom)?;
+
+    Some(Token::new(TokenKind::Atom, atom))
 }
 
-fn read_quoted(lex: &mut Lexer, tokens: &mut Tokens) {
+fn read_quoted(lex: &mut Lexer) -> Option<Token> {
     if let Some(charlist) = read_charlist(lex) {
-        tokens.push(Token::new(TokenKind::Charlist, Some(charlist)))
+        return Some(Token::new(TokenKind::Charlist, charlist))
     } else if let Some(string) = read_string(lex) {
-        tokens.push(Token::new(TokenKind::String, Some(string)))
+        return Some(Token::new(TokenKind::String, string))
     }
+
+    None
 }
 
 // IMPROVE ME strings and charlists reading are basically the same
 fn read_charlist(lex: &mut Lexer) -> Option<String> {
     match (lex.peek(), lex.peek_ahead(1)) {
         (Some('\''), Some('\'')) => {
-            let init = lex.take(3)?;
+            let init: String = lex.take(3).map(|t| t.lexeme()).collect();
             let charlist = lex.read_while(|c| !c.eq(&'\''))?;
-            let end = lex.take(3)?;
+            let end: String = lex.take(3).map(|t| t.lexeme()).collect();
 
             Some(init + &charlist + &end)
         }
@@ -164,9 +137,9 @@ fn read_charlist(lex: &mut Lexer) -> Option<String> {
 fn read_string(lex: &mut Lexer) -> Option<String> {
     match (lex.peek(), lex.peek_ahead(1)) {
         (Some('"'), Some('"')) => {
-            let init = lex.take(3)?;
+            let init: String = lex.take(3).map(|t| t.lexeme()).collect();
             let string = lex.read_while(|c| !c.eq(&'"'))?;
-            let end = lex.take(3)?;
+            let end: String = lex.take(3).map(|t| t.lexeme()).collect();
 
             Some(init + &string + &end)
         }
@@ -180,83 +153,88 @@ fn read_string(lex: &mut Lexer) -> Option<String> {
     }
 }
 
-fn read_whitespace(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(s) = lex.read_while(|c| c.is_whitespace()) {
-        tokens.push(Token::new(TokenKind::WhiteSpace, Some(s)))
+fn read_whitespace(lex: &mut Lexer) -> Option<Token> {
+    let ws = lex.read_while(|c| c.is_whitespace())?;
+
+    Some(Token::new(TokenKind::WhiteSpace, ws))
+}
+
+fn read_number(lex: &mut Lexer) -> Option<Token> {
+    let number = lex.read_while(is_number)?;
+
+    Some(Token::new(TokenKind::Number, number))
+}
+
+fn read_identifier(lex: &mut Lexer) -> Option<Token> {
+    let id = lex.read_while(is_identifier)?;
+
+    if is_bool_literal(&id) {
+        return Some(Token::new(TokenKind::Boolean, id))
     }
+
+    Some(Token::new(TokenKind::Identifier, id))
 }
 
-fn read_number(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(n) = lex.read_while(is_number) {
-        tokens.push(Token::new(TokenKind::Number, Some(n)))
-    }
+fn read_delim(lex: &mut Lexer) -> Option<Token> {
+    let delim = lex.read()?;
+
+    Some(Token::new(TokenKind::Delimiter, delim.to_string()))
 }
 
-fn read_identifier(lex: &mut Lexer, tokens: &mut Tokens) {
-    match lex.read_while(is_identifier) {
-        Some(b) if is_bool(&b) => tokens.push(Token::new(TokenKind::Boolean, Some(b))),
-        Some(s) => tokens.push(Token::new(TokenKind::Identifier, Some(s))),
-        _ => (),
-    }
+fn read_operator(lex: &mut Lexer) -> Option<Token> {
+    let op = lex.read_while(is_operator)?;
+
+    Some(Token::new(TokenKind::Operator, op))
 }
 
-fn read_delim(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(c) = lex.read() {
-        tokens.push(Token::new(TokenKind::Delimiter, Some(c.to_string())))
-    }
+fn is_atom(ch: &char) -> bool {
+   ch.eq(&':') || ch.is_alphanumeric()
 }
 
-fn read_illegal(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(s) = lex.read_while(|c| !c.is_whitespace()) {
-        tokens.push(Token::new(TokenKind::Illegal, Some(s)))
-    }
-}
-
-fn read_operator(lex: &mut Lexer, tokens: &mut Tokens) {
-    if let Some(o) = lex.read_while(is_operator) {
-        tokens.push(Token::new(TokenKind::Operator, Some(o)))
-    }
-}
-
-fn is_quote(c: &char) -> bool {
-    c.eq(&'\'') || c.eq(&'"')
-}
-
-fn is_bool(b: &str) -> bool {
+fn is_bool_literal(b: &str) -> bool {
     b.eq("true") || b.eq("false") || b.eq("nil")
 }
 
-fn is_delim(c: &char) -> bool {
-    c.eq(&'(')
-        || c.eq(&')')
-        || c.eq(&'[')
-        || c.eq(&']')
-        || c.eq(&'{')
-        || c.eq(&'}')
-        || c.eq(&'%')
-        || c.eq(&'#')
+fn is_char(ch: &char) -> bool {
+   ch.eq(&'?') || ch.is_alphanumeric()
 }
 
-fn is_operator(o: &char) -> bool {
-    o.is_ascii_punctuation()
-        && !o.eq(&'`')
-        && !o.eq(&'_')
-        && !o.eq(&'@')
-        && !o.eq(&',')
-        && !o.eq(&';')
-        && !o.eq(&'#')
+fn is_delim(ch: &char) -> bool {
+    ch.eq(&'(')
+        || ch.eq(&')')
+        || ch.eq(&'[')
+        || ch.eq(&']')
+        || ch.eq(&'{')
+        || ch.eq(&'}')
+        || ch.eq(&'%')
+        || ch.eq(&'#')
 }
 
-fn is_identifier(c: &char) -> bool {
-    (c.is_alphanumeric() || is_extra_literal(c)) || !c.is_ascii_punctuation()
+fn is_quote(ch: &char) -> bool {
+    ch.eq(&'\'') || ch.eq(&'"')
 }
 
-fn is_number(c: &char) -> bool {
-    c.is_ascii_alphanumeric() || c.eq(&'.')
+
+fn is_operator(ch: &char) -> bool {
+    ch.is_ascii_punctuation()
+        && !ch.eq(&'`')
+        && !ch.eq(&'_')
+        && !ch.eq(&'@')
+        && !ch.eq(&',')
+        && !ch.eq(&';')
+        && !ch.eq(&'#')
 }
 
-fn is_extra_literal(c: &char) -> bool {
-    c.eq(&'_') || c.eq(&'@')
+fn is_identifier(ch: &char) -> bool {
+    (ch.is_alphanumeric() || is_extra_literal(ch)) || !ch.is_ascii_punctuation()
+}
+
+fn is_number(ch: &char) -> bool {
+    ch.is_ascii_alphanumeric() || ch.eq(&'.')
+}
+
+fn is_extra_literal(ch: &char) -> bool {
+    ch.eq(&'_') || ch.eq(&'@')
 }
 
 #[cfg(test)]
@@ -288,38 +266,6 @@ mod cursor {
         lex.read();
 
         assert_eq!(lex.cursor, 3);
-    }
-}
-
-#[cfg(test)]
-mod is_done {
-    use super::*;
-
-    #[test]
-    fn emtpy() {
-        let lex = Lexer::new("");
-
-        assert!(lex.is_done())
-    }
-
-    #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-
-        assert_eq!(lex.is_done(), false)
-    }
-
-    #[test]
-    fn done() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-        lex.read();
-        lex.read();
-
-        assert!(lex.is_done())
     }
 }
 
@@ -414,148 +360,129 @@ mod read {
 }
 
 #[cfg(test)]
-mod take {
+mod lexer {
     use super::*;
 
     #[test]
-    fn empty() {
-        let mut lex = Lexer::new("");
-        assert_eq!(lex.take(1), None);
-        assert_eq!(lex.cursor, 0);
+    fn should_read_atom() {
+        let atom = ":enabled?";
+        let token = Lexer::new(atom).next().unwrap();
+        assert!(token.kind().is_atom());
+        assert_eq!(token.lexeme(), atom.to_string());
     }
 
     #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc");
-        assert_eq!(lex.take(2), Some("ab".to_string()));
-        assert_eq!(lex.cursor, 2);
+    fn should_read_quoted_atom() {
+        let atom = r#":"enabled?""#;
+        let token = Lexer::new(atom).next().unwrap();
+        assert!(token.kind().is_atom());
+        assert_eq!(token.lexeme(), atom.to_string());
     }
 
-    #[test]
-    fn done() {
-        let mut lex = Lexer::new("abc");
-        lex.read();
-        lex.read();
-        lex.read();
-        assert_eq!(lex.take(1), None);
-        assert_eq!(lex.cursor, 3);
-    }
-}
-
-#[cfg(test)]
-mod tokenize {
-    use super::*;
-
-    #[test]
-    fn should_read_atoms() {
-        let single = ":enabled?";
-        let pair = ":enabled? :disabled?";
-
-        let single_tokens = &tokenize(&mut Lexer::new(single)).unwrap();
-        let pair_tokens = &tokenize(&mut Lexer::new(pair)).unwrap();
-
-        println!("{:?}", pair_tokens);
-        assert_eq!(single_tokens.len(), 2);
-        assert_eq!(pair_tokens.len(), 3);
-
-        let single_token = &single_tokens[0];
-
-        assert_eq!(single_token.kind(), TokenKind::Atom);
-        assert_eq!(single_token.lexeme(), Some(single.to_string()));
-
-        assert!(pair_tokens.iter().any(|t| t.kind().is_atom()));
-    }
 
     #[test]
     fn should_read_int() {
         let int = "40";
-        let token = &tokenize(&mut Lexer::new(int)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(int.to_string()));
+        let token = Lexer::new(int).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), int.to_string());
     }
 
     #[test]
     fn should_read_float() {
         let float = "11.45";
-        let token = &tokenize(&mut Lexer::new(float)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(float.to_string()));
+        let token = Lexer::new(float).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), float.to_string());
     }
 
     #[test]
     fn should_read_sci_float() {
         let sci_f = "1.11e10";
-        let token = &tokenize(&mut Lexer::new(sci_f)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(sci_f.to_string()));
+        let token = Lexer::new(sci_f).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), sci_f.to_string());
     }
 
     #[test]
     fn should_read_bin() {
         let bin = "0b1010";
-        let token = &tokenize(&mut Lexer::new(bin)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(bin.to_string()));
+        let token = Lexer::new(bin).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), bin.to_string());
     }
 
     #[test]
     fn should_read_octal() {
         let oct = "0o17";
-        let token = &tokenize(&mut Lexer::new(oct)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(oct.to_string()));
+        let token = Lexer::new(oct).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), oct.to_string());
     }
 
     #[test]
     fn should_read_hexa() {
         let hex = "0xFFF";
-        let token = &tokenize(&mut Lexer::new(hex)).unwrap()[0];
-        assert_eq!(token.kind(), TokenKind::Number);
-        assert_eq!(token.lexeme(), Some(hex.to_string()));
+        let token = Lexer::new(hex).next().unwrap();
+        assert!(token.kind().is_number());
+        assert_eq!(token.lexeme(), hex.to_string());
     }
 
     #[test]
     fn should_read_delims() {
         let delims = "%#{}()[]";
-        let tokens = tokenize(&mut Lexer::new(delims)).unwrap();
-        assert!(tokens[..tokens.len() - 1]
-            .iter()
-            .all(|t| t.kind().is_delimiter()));
+        let mut lex = Lexer::new(delims);
+
+        while !lex.is_done() {
+            let token = lex.next().unwrap();
+            assert!(token.kind().is_delimiter());
+        }
     }
 
     #[test]
     fn should_read_char() {
-        let ch = "?a ?é ?aaa";
-        let tokens = tokenize(&mut Lexer::new(ch)).unwrap();
-        assert!(tokens[0].kind().is_char());
-        assert!(tokens[1].kind().is_char());
-        assert!(tokens[2].kind().is_illegal());
+        let ch = "?é";
+        let token = Lexer::new(ch).next().unwrap();
+        assert!(token.kind().is_char());
+        assert_eq!(token.lexeme(), ch.to_string());
     }
 
     #[test]
     fn should_read_bool() {
-        let b = "true false nil";
-        let tokens = tokenize(&mut Lexer::new(b)).unwrap();
-        assert!(tokens[0].kind().is_boolean());
-        assert!(tokens[1].kind().is_boolean());
-        assert!(tokens[2].kind().is_boolean());
-        assert!(tokens[3].kind().is_eof());
+        let bools = "true false nil";
+        let mut lex = Lexer::new(bools);
+
+        let t = lex.next().unwrap();
+        assert!(t.kind().is_boolean());
+        assert_eq!(t.lexeme(), "true".to_string());
+
+        lex.next();
+
+        let f = lex.next().unwrap();
+        assert!(f.kind().is_boolean());
+        assert_eq!(f.lexeme(), "false".to_string());
+
+        lex.next();
+
+        let n = lex.next().unwrap();
+        assert!(n.kind().is_boolean());
+        assert_eq!(n.lexeme(), "nil".to_string());
     }
 
     #[test]
     fn should_read_identifier() {
-        let i = "hello ola12 _vrum @doc defmodule";
-        let tokens = tokenize(&mut Lexer::new(i)).unwrap();
-        assert!(tokens[..tokens.len() - 1]
-            .iter()
-            .all(|t| t.kind().is_identifier()));
+        let id = "defmodule";
+        let token = Lexer::new(id).next().unwrap();
+        assert!(token.kind().is_identifier());
+        assert_eq!(token.lexeme(), id.to_string());
     }
 
     #[test]
     fn should_read_simple_string() {
         let simple = r#""ola""#;
-        let tokens = tokenize(&mut Lexer::new(simple)).unwrap();
-        assert!(tokens.iter().any(|t| t.kind().is_string()));
+        let token = Lexer::new(simple).next().unwrap();
+        assert!(token.kind().is_string());
+        assert_eq!(token.lexeme(), simple.to_string());
     }
 
     #[test]
@@ -563,15 +490,17 @@ mod tokenize {
         let complex = r#"
             """\nola\n"""
             "#;
-        let tokens = tokenize(&mut Lexer::new(complex)).unwrap();
-        assert!(tokens.iter().any(|t| t.kind().is_string()));
+        let token = Lexer::new(complex).next().unwrap();
+        assert!(token.kind().is_string());
+        assert_eq!(token.lexeme(), complex.to_string());
     }
 
     #[test]
     fn should_read_simple_charlist() {
         let simple = r#"'ola'"#;
-        let tokens = tokenize(&mut Lexer::new(simple)).unwrap();
-        assert!(tokens.iter().any(|t| t.kind().is_charlist()));
+        let token = Lexer::new(simple).next().unwrap();
+        assert!(token.kind().is_charlist());
+        assert_eq!(token.lexeme(), simple.to_string());
     }
 
     #[test]
@@ -579,8 +508,9 @@ mod tokenize {
         let complex = r#"
             '''\nola\n'''
             "#;
-        let tokens = tokenize(&mut Lexer::new(complex)).unwrap();
-        assert!(tokens.iter().any(|t| t.kind().is_charlist()));
+        let token = Lexer::new(complex).next().unwrap();
+        assert!(token.kind().is_charlist());
+        assert_eq!(token.lexeme(), complex.to_string());
     }
 
     #[test]
@@ -592,11 +522,21 @@ mod tokenize {
             <~ ~> <~> <|> +++ --- <> ++ --
             => :: | // .. .
             "#;
-        let tokens = tokenize(&mut Lexer::new(ops)).unwrap();
-        assert!(tokens
-            .iter()
-            .filter(|t| !t.kind().is_whitespace())
-            .any(|t| t.kind().is_operator()));
+        let ops_len = ops.chars().map(|c| !c.is_whitespace()).count();
+        let mut lex = Lexer::new(ops);
+        let mut ops_readed = 0;
+
+        while !lex.is_done() {
+            let token = lex.next().unwrap();
+            if token.kind().is_whitespace() {
+                ops_readed += 1;
+                continue;
+            }
+
+            assert!(token.kind().is_operator());
+        }
+
+        assert_eq!(ops_len, ops_readed)
     }
 
     // use std::path::Path;

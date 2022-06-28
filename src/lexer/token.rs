@@ -1,7 +1,7 @@
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
     kind: TokenKind,
-    lexeme: Option<String>,
+    lexeme: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -12,9 +12,7 @@ pub enum TokenKind {
     Charlist,
     Comma,
     Delimiter,
-    EOF,
     Identifier,
-    Illegal,
     Number, // int, float, bin, oct, hex
     Operator,
     String,
@@ -22,7 +20,7 @@ pub enum TokenKind {
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, lexeme: Option<String>) -> Self {
+    pub fn new(kind: TokenKind, lexeme: String) -> Self {
         Token { kind, lexeme }
     }
 
@@ -30,12 +28,8 @@ impl Token {
         self.kind.clone()
     }
 
-    pub fn lexeme(&self) -> Option<String> {
-        if let Some(s) = &self.lexeme {
-            return Some(s.to_string());
-        }
-
-        None
+    pub fn lexeme(&self) -> String {
+        (&self.lexeme).to_string()
     }
 }
 
@@ -64,16 +58,8 @@ impl TokenKind {
         matches!(self, TokenKind::Delimiter)
     }
 
-    pub fn is_eof(&self) -> bool {
-        matches!(self, TokenKind::EOF)
-    }
-
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenKind::Identifier)
-    }
-
-    pub fn is_illegal(&self) -> bool {
-        matches!(self, TokenKind::Illegal)
     }
 
     pub fn is_number(&self) -> bool {
