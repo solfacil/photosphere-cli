@@ -61,11 +61,11 @@ impl Lexer {
     }
 
     fn is_done(&self) -> bool {
-       self.cursor == self.input.len() 
+        self.cursor == self.input.len()
     }
 }
 
-impl Iterator for Lexer{
+impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -82,7 +82,7 @@ impl Iterator for Lexer{
             ch if is_identifier(ch) => read_identifier(self),
             ch if ch.is_whitespace() => read_whitespace(self),
             _ => None,
-        } 
+        }
     }
 }
 
@@ -106,9 +106,9 @@ fn read_atom(lex: &mut Lexer) -> Option<Token> {
 
 fn read_quoted(lex: &mut Lexer) -> Option<Token> {
     if let Some(charlist) = read_charlist(lex) {
-        return Some(Token::new(TokenKind::Charlist, charlist))
+        return Some(Token::new(TokenKind::Charlist, charlist));
     } else if let Some(string) = read_string(lex) {
-        return Some(Token::new(TokenKind::String, string))
+        return Some(Token::new(TokenKind::String, string));
     }
 
     None
@@ -169,7 +169,7 @@ fn read_identifier(lex: &mut Lexer) -> Option<Token> {
     let id = lex.read_while(is_identifier)?;
 
     if is_bool_literal(&id) {
-        return Some(Token::new(TokenKind::Boolean, id))
+        return Some(Token::new(TokenKind::Boolean, id));
     }
 
     Some(Token::new(TokenKind::Identifier, id))
@@ -188,7 +188,7 @@ fn read_operator(lex: &mut Lexer) -> Option<Token> {
 }
 
 fn is_atom(ch: &char) -> bool {
-   ch.eq(&':') || ch.is_alphanumeric()
+    ch.eq(&':') || ch.is_alphanumeric()
 }
 
 fn is_bool_literal(b: &str) -> bool {
@@ -196,7 +196,7 @@ fn is_bool_literal(b: &str) -> bool {
 }
 
 fn is_char(ch: &char) -> bool {
-   ch.eq(&'?') || ch.is_alphanumeric()
+    ch.eq(&'?') || ch.is_alphanumeric()
 }
 
 fn is_delim(ch: &char) -> bool {
@@ -213,7 +213,6 @@ fn is_delim(ch: &char) -> bool {
 fn is_quote(ch: &char) -> bool {
     ch.eq(&'\'') || ch.eq(&'"')
 }
-
 
 fn is_operator(ch: &char) -> bool {
     ch.is_ascii_punctuation()
@@ -379,7 +378,6 @@ mod lexer {
         assert_eq!(token.lexeme(), atom.to_string());
     }
 
-
     #[test]
     fn should_read_int() {
         let int = "40";
@@ -472,6 +470,22 @@ mod lexer {
     #[test]
     fn should_read_identifier() {
         let id = "defmodule";
+        let token = Lexer::new(id).next().unwrap();
+        assert!(token.kind().is_identifier());
+        assert_eq!(token.lexeme(), id.to_string());
+    }
+
+    #[test]
+    fn should_read_module_identifier() {
+        let id = "@doc";
+        let token = Lexer::new(id).next().unwrap();
+        assert!(token.kind().is_identifier());
+        assert_eq!(token.lexeme(), id.to_string());
+    }
+
+    #[test]
+    fn should_read_ignored_identifier() {
+        let id = "_vroom";
         let token = Lexer::new(id).next().unwrap();
         assert!(token.kind().is_identifier());
         assert_eq!(token.lexeme(), id.to_string());
