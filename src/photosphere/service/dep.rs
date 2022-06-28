@@ -1,4 +1,4 @@
-use crate::lexer::Lexer;
+use crate::parser::lexer::Lexer;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 // `Option` field for those
