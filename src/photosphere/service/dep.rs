@@ -25,7 +25,7 @@ impl Env {
         match *self {
             Env::Dev => ":dev",
             Env::Test => ":test",
-            Env::Prod => ": prod",
+            Env::Prod => ":prod",
         }
     }
 }
