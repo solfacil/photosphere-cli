@@ -24,8 +24,8 @@ impl Env {
     pub fn to_str(&self) -> &str {
         match *self {
             Env::Dev => ":dev",
-            Env::Test => ":prod",
-            Env::Prod => ":test",
+            Env::Test => ":test",
+            Env::Prod => ":prod",
         }
     }
 }
