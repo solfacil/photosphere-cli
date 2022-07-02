@@ -8,10 +8,12 @@ pub struct Token {
 pub enum TokenKind {
     Atom,
     Boolean, // bools are atoms although
-    Char,
+    Char, // codepoint ?a
+    Comment,
     Comma,
-    Delimiter,
+    Delimiter, // (), {}, []
     Identifier,
+    Newline,
     Number, // int, float, bin, oct, hex
     Operator,
     Quote,
@@ -45,6 +47,10 @@ impl TokenKind {
         matches!(self, TokenKind::Char)
     }
 
+    pub fn is_comment(&self) -> bool {
+        matches!(self, TokenKind::Comment)
+    }
+
     pub fn is_comma(&self) -> bool {
         matches!(self, TokenKind::Comma)
     }
@@ -55,6 +61,10 @@ impl TokenKind {
 
     pub fn is_identifier(&self) -> bool {
         matches!(self, TokenKind::Identifier)
+    }
+
+    pub fn is_newline(&self) -> bool {
+        matches!(self, TokenKind::Newline)
     }
 
     pub fn is_number(&self) -> bool {

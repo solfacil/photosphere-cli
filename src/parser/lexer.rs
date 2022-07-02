@@ -20,7 +20,7 @@ impl Lexer {
     // consumes a char and advances to next
     fn read(&mut self) -> Option<&char> {
         if let Some(ch) = self.input.get(self.cursor) {
-            self.cursor += ch.len_utf8();
+            self.cursor += 1;
 
             return Some(ch);
         }
@@ -28,17 +28,20 @@ impl Lexer {
         None
     }
 
+    // consumes a range of char while
+    // `pred` returns `true`
     fn read_while<P>(&mut self, mut pred: P) -> Option<String>
     where
         P: FnMut(&char) -> bool,
     {
         let mut string = String::new();
 
-        while let Some(ch) = self.read() {
-            if !pred(ch) {
+        while let Some(next) = self.peek() {
+            if !pred(next) {
                 break;
             }
 
+            let ch = self.read()?;
             string.push(*ch);
         }
 
@@ -60,7 +63,7 @@ impl Lexer {
     }
 
     fn is_done(&self) -> bool {
-        self.cursor == self.input.len()
+        self.cursor >= self.input.len()
     }
 }
 
@@ -71,9 +74,11 @@ impl Iterator for Lexer {
         let peek = self.peek()?;
 
         match peek {
+            '#' => read_comment(self),
             ',' => read_comma(self),
             ':' => read_atom(self),
             '?' => read_char(self),
+            ch if is_newline(ch) => read_newline(self),
             ch if is_quote(ch) => read_quote(self),
             ch if is_delim(ch) => read_delim(self),
             ch if is_operator(ch) => read_operator(self),
@@ -83,6 +88,18 @@ impl Iterator for Lexer {
             _ => None,
         }
     }
+}
+
+fn read_comment(lex: &mut Lexer) -> Option<Token> {
+    let comment = lex.read_while(|ch| !is_newline(ch))?;
+
+    Some(Token::new(TokenKind::Comment, comment))
+}
+
+fn read_newline(lex: &mut Lexer) -> Option<Token> {
+    let newline = lex.read()?.to_string();
+
+    Some(Token::new(TokenKind::Newline, newline))
 }
 
 fn read_comma(lex: &mut Lexer) -> Option<Token> {
@@ -205,6 +222,10 @@ fn is_extra_literal(ch: &char) -> bool {
         || ch.eq(&'%')
         || ch.eq(&'}')
         || ch.eq(&'.')
+}
+
+fn is_newline(ch: &char) -> bool {
+   ch.eq(&'\n') || ch.eq(&'\t') || ch.eq(&'\r')
 }
 
 #[cfg(test)]
@@ -457,9 +478,13 @@ mod lexer {
         assert!(t.kind().is_boolean());
         assert_eq!(t.lexeme(), "true".to_string());
 
+        lex.next();
+
         let f = lex.next().unwrap();
         assert!(f.kind().is_boolean());
         assert_eq!(f.lexeme(), "false".to_string());
+
+        lex.next();
 
         let n = lex.next().unwrap();
         assert!(n.kind().is_boolean());
@@ -517,24 +542,56 @@ mod lexer {
 
         while !lex.is_done() {
             let token = lex.next().unwrap();
+            let kind = token.kind();
 
-            if !token.kind().is_whitespace() {
-                assert!(token.kind().is_operator());
+            if kind.is_whitespace() || kind.is_newline() {
+                continue;
             }
+
+            assert!(token.kind().is_operator());
         }
     }
 
-    // use std::path::Path;
+    #[test]
+    fn should_read_comment() {
+        let comment = "# hello";
+        let token = Lexer::new(comment).next().unwrap();
+        assert!(token.kind().is_comment());
+        assert_eq!(token.lexeme(), comment.to_string());
+    }
+
+    #[test]
+    fn should_read_newline() {
+        let newline = "\n";
+        let token = Lexer::new(newline).next().unwrap();
+        assert!(token.kind().is_newline());
+        assert_eq!(token.lexeme(), newline.to_string());
+    }
+
+    use std::path::Path;
+    use std::fs::File;
+    use std::io::Write;
 
     // for manual token checking
-    // #[test]
-    // fn read_mix_exs() {
-    //     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    //     let p = root.join("priv").join("mix.exs");
-    //     let c = std::fs::read_to_string(p).unwrap();
-    //     let tokens = tokenize(&mut Lexer::new(&c)).unwrap();
-    //     std::fs::write(root.join("tokens.txt"), format!("{:?}", tokens)).unwrap();
-    //
-    //     assert!(true);
-    // }
+    #[test]
+    fn read_mix_exs() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let p = root.join("priv").join("mix.exs");
+        let c = std::fs::read_to_string(p).unwrap();
+
+        let mut lex = Lexer::new(&c);
+        let mut f = File::create("tokens.txt").unwrap();
+
+        loop {
+            if lex.cursor > 0 && lex.is_done() {
+                break;
+            }
+
+            let t = lex.next();
+            println!("{:?}", t);
+            writeln!(&mut f, "{:?}", t.unwrap());
+        }
+
+        assert!(true);
+    }
 }
