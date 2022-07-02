@@ -1,3 +1,5 @@
+use crate::parser::lexer::Lexer;
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 // `Option` field for those
 // that cannot be explicit on `mix.exs`
@@ -18,6 +20,16 @@ pub enum Env {
     Test,
 }
 
+impl Env {
+    pub fn to_str(&self) -> &str {
+        match *self {
+            Env::Dev => ":dev",
+            Env::Test => ":prod",
+            Env::Prod => ":test",
+        }
+    }
+}
+
 impl Dep {
     pub fn new() -> Self {
         Dep::default()
@@ -36,10 +48,6 @@ impl Dep {
             || lc_name.eq("ecto_sql")
             || lc_name.eq("phoenix_ecto")
             || lc_name.eq("postgrex")
-    }
-
-    pub fn is_gettext(&self) -> bool {
-        self.name.to_lowercase().eq("gettext")
     }
 
     pub fn is_graphql(&self) -> bool {

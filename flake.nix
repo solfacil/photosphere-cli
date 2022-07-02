@@ -1,12 +1,15 @@
 {
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-22.05";
+    rust-overlay.url = "github:oxalica/rust-overlay";
     utils.url = "github:gytis-ivaskevicius/flake-utils-plus";
   };
 
-  outputs = inputs@{ self, utils, ... }:
+  outputs = inputs@{ self, utils, rust-overlay, ... }:
     utils.lib.mkFlake rec {
       inherit self inputs;
+
+      sharedOverlays = [ (import rust-overlay) ];
 
       supportedSystems = [
         "aarch64-linux"
@@ -17,7 +20,18 @@
       ];
 
       outputsBuilder = channels: with channels; {
-        packages = with nixpkgs; { 
+        devShell = nixpkgs.mkShell {
+          name = "photosphere";
+
+          buildInputs = with nixpkgs; [
+            # `rust-overlay` has a set of
+            # rust tools see more on
+            # https://github.com/oxalica/rust-overlay
+            rust-bin.stable.latest.complete
+          ];
+        };
+
+        packages = with nixpkgs; {
           inherit (nixpkgs) package-from-overlays;
 
           photosphere = rustPlatform.buildRustPackage rec {
@@ -48,13 +62,6 @@
           };
         };
 
-        devShell = nixpkgs.mkShell {
-          name = "photosphere";
-
-          buildInputs = with nixpkgs; [
-            rustc cargo rustfmt clippy cargo-nextest
-          ];
-        };
       };
     };
 }

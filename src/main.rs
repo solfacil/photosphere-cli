@@ -2,6 +2,7 @@ use crate::photosphere::{setup, validations::validate_project_name};
 use anyhow::Result;
 use clap::{ArgEnum, Args, Parser, Subcommand};
 
+pub mod parser;
 pub mod photosphere;
 
 #[derive(Parser)]
@@ -42,8 +43,6 @@ pub struct ServiceArgs {
     no_auth: bool,
     #[clap(long)]
     no_database: bool,
-    #[clap(long)]
-    no_gettext: bool,
     #[clap(long)]
     no_graphql: bool,
     #[clap(long)]
