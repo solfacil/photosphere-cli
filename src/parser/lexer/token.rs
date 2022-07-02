@@ -8,7 +8,7 @@ pub struct Token {
 pub enum TokenKind {
     Atom,
     Boolean, // bools are atoms although
-    Char, // codepoint ?a
+    Char,    // codepoint ?a
     Comment,
     Comma,
     Delimiter, // (), {}, []

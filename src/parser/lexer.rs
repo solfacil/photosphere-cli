@@ -225,7 +225,7 @@ fn is_extra_literal(ch: &char) -> bool {
 }
 
 fn is_newline(ch: &char) -> bool {
-   ch.eq(&'\n') || ch.eq(&'\t') || ch.eq(&'\r')
+    ch.eq(&'\n') || ch.eq(&'\t') || ch.eq(&'\r')
 }
 
 #[cfg(test)]
@@ -568,9 +568,9 @@ mod lexer {
         assert_eq!(token.lexeme(), newline.to_string());
     }
 
-    use std::path::Path;
     use std::fs::File;
     use std::io::Write;
+    use std::path::Path;
 
     // for manual token checking
     #[test]
