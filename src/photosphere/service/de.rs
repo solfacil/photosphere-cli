@@ -1,13 +1,12 @@
-use super::dep::{Dep, Env};
+use super::{Dep, Service, dep::Env};
 use anyhow::Result;
 use std::path::Path;
 
 pub const DEPS_START: &'static &str = &"# start deps";
 const DEPS_END: &'static &str = &"# end deps";
 
-pub fn parse_deps(root: &Path) -> Result<Vec<Dep>> {
-    let mix_exs_path = root.join("mix.exs");
-    let mix_exs = std::fs::read_to_string(mix_exs_path)?;
+pub fn parse_deps(service: &mut Service) -> Result<Vec<Dep>> {
+    let mix_exs = std::fs::read_to_string(&service.mix_exs)?;
 
     let start = mix_exs.find(DEPS_START).unwrap_or(0) + DEPS_START.len();
     let end = mix_exs.find(DEPS_END).unwrap_or(mix_exs.len());

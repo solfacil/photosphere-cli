@@ -67,7 +67,7 @@ fn clone_repository(url: &str, dest: &Path) -> Result<(), Error> {
 }
 
 fn setup_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {
-    let deps = service::de::parse_deps(&service.path)?;
+    let deps = service::de::parse_deps(service)?;
 
     // set deps first to filter them after
     service

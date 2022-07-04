@@ -1,6 +1,6 @@
 use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 pub use dep::Dep;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
 pub mod de;
@@ -16,6 +16,7 @@ pub struct Service {
     pub(super) graphql: bool,
     pub(super) http_client: bool,
     pub(super) mailer: bool,
+    pub(super) mix_exs: PathBuf,
     pub(super) messaging: bool,
     pub(super) monitoring: bool,
     pub(super) name: String,
@@ -26,6 +27,8 @@ pub struct Service {
 
 impl Service {
     pub fn new(name: &str, path: &str) -> Self {
+        let mix_exs = Path::new(path).join("mix.exs");
+
         Service {
             auth: true,
             database: true,
@@ -34,6 +37,7 @@ impl Service {
             graphql: true,
             http_client: true,
             mailer: true,
+            mix_exs,
             monitoring: true,
             messaging: true,
             name: name.to_string(),
