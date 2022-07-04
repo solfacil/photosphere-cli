@@ -20,15 +20,11 @@ const SSH_URL: &'static &str = &"git@github.com:solfacil/service-template";
 pub const SNAKE_CASE_DEFAULT: &'static &str = &"service_template";
 
 pub fn build_partial_service(service_path: &str, is_ssh: bool) -> Service {
-    let mut default_service = Service::default();
-
     let service_name = get_project_name(service_path);
 
-    default_service
-        .set_name(service_name.to_string())
-        .set_path(service_path.to_string())
-        .set_ssh(is_ssh)
-        .clone()
+    let mut default_service = Service::new(service_name, service_path);
+
+    default_service.set_ssh(is_ssh).clone()
 }
 
 pub fn create_service(service: &mut Service, args: &ServiceArgs) -> Result<()> {

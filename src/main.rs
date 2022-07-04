@@ -1,6 +1,6 @@
-use photosphere::{setup, validations::validate_project_name};
 use anyhow::Result;
 use clap::{ArgEnum, Args, Parser, Subcommand};
+use photosphere::{setup, validations::validate_project_name};
 
 mod parser;
 mod photosphere;

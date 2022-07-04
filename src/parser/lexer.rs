@@ -568,30 +568,30 @@ mod lexer {
         assert_eq!(token.lexeme(), newline.to_string());
     }
 
-    use std::fs::File;
-    use std::io::Write;
-    use std::path::Path;
+    // use std::fs::File;
+    // use std::io::Write;
+    // use std::path::Path;
 
     // for manual token checking
-    #[test]
-    fn read_mix_exs() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let p = root.join("priv").join("mix.exs");
-        let c = std::fs::read_to_string(p).unwrap();
-
-        let mut lex = Lexer::new(&c);
-        let mut f = File::create("tokens.txt").unwrap();
-
-        loop {
-            if lex.cursor > 0 && lex.is_done() {
-                break;
-            }
-
-            let t = lex.next();
-            println!("{:?}", t);
-            writeln!(&mut f, "{:?}", t.unwrap());
-        }
-
-        assert!(true);
-    }
+    // #[test]
+    // fn read_mix_exs() {
+    //     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    //     let p = root.join("priv").join("mix.exs");
+    //     let c = std::fs::read_to_string(p).unwrap();
+    //
+    //     let mut lex = Lexer::new(&c);
+    //     let mut f = File::create("tokens.txt").unwrap();
+    //
+    //     loop {
+    //         if lex.cursor > 0 && lex.is_done() {
+    //             break;
+    //         }
+    //
+    //         let t = lex.next();
+    //         println!("{:?}", t);
+    //         writeln!(&mut f, "{:?}", t.unwrap()).unwrap();
+    //     }
+    //
+    //     assert!(true);
+    // }
 }

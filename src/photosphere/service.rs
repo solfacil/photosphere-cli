@@ -1,6 +1,7 @@
 use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
 pub use dep::Dep;
 use std::path::PathBuf;
+use walkdir::{DirEntry, WalkDir};
 
 pub mod de;
 mod dep;
@@ -11,6 +12,7 @@ pub struct Service {
     pub(super) auth: bool, // both authentication and authorization
     pub(super) database: bool,
     pub(super) deps: Vec<Dep>,
+    pub(super) entries: Vec<DirEntry>,
     pub(super) graphql: bool,
     pub(super) http_client: bool,
     pub(super) mailer: bool,
@@ -23,23 +25,44 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn default() -> Self {
-        let default_path = PathBuf::from(&format!("./{}", SNAKE_CASE_DEFAULT));
-
+    pub fn new(name: &str, path: &str) -> Self {
         Service {
             auth: true,
             database: true,
             deps: vec![],
+            entries: vec![],
             graphql: true,
             http_client: true,
             mailer: true,
             monitoring: true,
             messaging: true,
-            name: SNAKE_CASE_DEFAULT.to_string(),
-            path: default_path,
+            name: name.to_string(),
+            path: PathBuf::from(path),
             protocol: Protocol::Rest,
             ssh: false,
         }
+    }
+
+    pub fn default() -> Self {
+        Service::new(SNAKE_CASE_DEFAULT, &format!("./{}", SNAKE_CASE_DEFAULT))
+    }
+
+    pub fn set_deps(&mut self, deps: Vec<Dep>) -> &mut Service {
+        self.deps = deps;
+
+        self
+    }
+
+    pub fn set_entries(&mut self) -> &mut Service {
+        // FIXME não podemos só ignorar os erros
+        // na leituras dos arquivos
+        self.entries = WalkDir::new(&self.path)
+            .same_file_system(true)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .collect();
+
+        self
     }
 
     pub fn set_no_auth(&mut self, no_auth: bool) -> &mut Service {
@@ -49,12 +72,6 @@ impl Service {
 
             return self;
         }
-
-        self
-    }
-
-    pub fn set_deps(&mut self, deps: Vec<Dep>) -> &mut Service {
-        self.deps = deps;
 
         self
     }
@@ -121,18 +138,6 @@ impl Service {
 
             return self;
         }
-
-        self
-    }
-
-    pub fn set_name(&mut self, name: String) -> &mut Service {
-        self.name = name;
-
-        self
-    }
-
-    pub fn set_path(&mut self, path: String) -> &mut Service {
-        self.path = PathBuf::from(&path);
 
         self
     }
@@ -272,30 +277,6 @@ mod tests {
 
         assert_eq!(service.monitoring, false);
         assert!(service.deps.iter().all(|d| !d.is_monitoring()));
-    }
-
-    #[test]
-    fn set_name() {
-        let mut default_service = Service::default();
-
-        assert_eq!(default_service.name, "service_template".to_string());
-
-        let name = "a_name".to_string();
-        let service = default_service.set_name(name.clone());
-
-        assert_eq!(service.name, name);
-    }
-
-    #[test]
-    fn set_path() {
-        let mut default_service = Service::default();
-
-        assert_eq!(default_service.path, Path::new("./service_template"));
-
-        let path = Path::new("a_path").to_str().unwrap_or_default().to_string();
-        let service = default_service.set_path(path.clone());
-
-        assert_eq!(service.path, Path::new(&path));
     }
 
     #[test]
