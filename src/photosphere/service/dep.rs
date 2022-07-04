@@ -1,5 +1,3 @@
-use crate::parser::lexer::Lexer;
-
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 // `Option` field for those
 // that cannot be explicit on `mix.exs`

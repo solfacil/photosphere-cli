@@ -1,7 +1,7 @@
-use self::token::{Token, TokenKind};
+pub use self::token::{Token, TokenKind};
 use std::char;
 
-pub mod token;
+mod token;
 
 #[derive(Clone, Debug)]
 pub struct Lexer {

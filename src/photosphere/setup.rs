@@ -1,6 +1,6 @@
 use super::{
     service,
-    service::{dep::Dep, Service},
+    service::{Dep, Service},
     str_utils,
     validations::get_project_name,
 };

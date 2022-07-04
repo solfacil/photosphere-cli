@@ -1,9 +1,9 @@
-use crate::photosphere::{setup, validations::validate_project_name};
+use photosphere::{setup, validations::validate_project_name};
 use anyhow::Result;
 use clap::{ArgEnum, Args, Parser, Subcommand};
 
-pub mod parser;
-pub mod photosphere;
+mod parser;
+mod photosphere;
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]

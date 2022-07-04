@@ -1,9 +1,9 @@
 use crate::{setup::SNAKE_CASE_DEFAULT, Protocol};
-use dep::Dep;
+pub use dep::Dep;
 use std::path::PathBuf;
 
 pub mod de;
-pub mod dep;
+mod dep;
 pub mod ser;
 
 #[derive(Clone, Debug)]
