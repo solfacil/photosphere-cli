@@ -85,7 +85,7 @@ defmodule ServiceTemplate.MixProject do
       {:grpc, github: "elixir-grpc/grpc"},
       {:google_protos, "~> 0.1"},
       {:messaging, git: "git@github.com:solfacil/messaging.git", tag: "2.0.0"},
-      {:gun, "~> 2.0.0", repo: "hexpm", hex: "grpc_gun", override: true}
+      {:gun, "~> 2.0.0", repo: "hexpm", hex: "grpc_gun", override: true},
       {:httpoison, "~> 1.8"},
       {:prom_ex, "~> 1.6"},
       {:ex_commons, git: "git@github.com:solfacil/ex_commons.git", tag: "0.0.3", override: true},

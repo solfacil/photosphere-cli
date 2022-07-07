@@ -1,4 +1,4 @@
-use super::{Dep, Service, dep::Env};
+use super::{dep::Env, Dep, Service};
 use anyhow::Result;
 use std::path::Path;
 

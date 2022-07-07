@@ -48,7 +48,10 @@ impl Service {
     }
 
     pub fn default() -> Self {
-        Service::new(SNAKE_CASE_DEFAULT, &format!("./{}", SNAKE_CASE_DEFAULT))
+        let cargo_root = env!("CARGO_MANIFEST_DIR");
+        let path = format!("{}/priv", cargo_root);
+
+        Service::new(SNAKE_CASE_DEFAULT, path.as_str())
     }
 
     pub fn set_deps(&mut self, deps: Vec<Dep>) -> &mut Service {
@@ -183,16 +186,13 @@ mod tests {
     use super::*;
     use std::path::Path;
 
-    const CARGO_ROOT: &str = env!("CARGO_MANIFEST_DIR");
-
     #[test]
     fn set_no_auth() {
         let mut default_service = Service::default();
 
         assert_eq!(default_service.auth, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_auth(true);
 
         assert_eq!(service.auth, false);
@@ -205,8 +205,7 @@ mod tests {
 
         assert_eq!(default_service.database, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_database(true);
 
         assert_eq!(service.database, false);
@@ -219,8 +218,7 @@ mod tests {
 
         assert_eq!(default_service.graphql, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_graphql(true);
 
         assert_eq!(service.graphql, false);
@@ -233,8 +231,7 @@ mod tests {
 
         assert_eq!(default_service.http_client, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_http_client(true);
 
         assert_eq!(service.http_client, false);
@@ -247,8 +244,7 @@ mod tests {
 
         assert_eq!(default_service.mailer, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_mailer(true);
 
         assert_eq!(service.mailer, false);
@@ -261,8 +257,7 @@ mod tests {
 
         assert_eq!(default_service.messaging, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_messaging(true);
 
         assert_eq!(service.messaging, false);
@@ -275,8 +270,7 @@ mod tests {
 
         assert_eq!(default_service.monitoring, true);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_no_monitoring(true);
 
         assert_eq!(service.monitoring, false);
@@ -289,8 +283,7 @@ mod tests {
 
         assert_eq!(default_service.protocol, Protocol::Rest);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps);
 
         // IMPROVEME on
@@ -303,8 +296,7 @@ mod tests {
 
         assert_eq!(default_service.protocol, Protocol::Rest);
 
-        let path = Path::new(CARGO_ROOT).join("priv");
-        let deps = de::parse_deps(path.as_path()).unwrap();
+        let deps = de::parse_deps(&mut default_service).unwrap();
         let service = default_service.set_deps(deps).set_protocol(Protocol::Grpc);
 
         assert_eq!(service.protocol, Protocol::Grpc);
