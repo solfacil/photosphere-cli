@@ -74,10 +74,12 @@ impl Iterator for Lexer {
         let peek = self.peek()?;
 
         match peek {
+            '@' => read_at(self),
             '#' => read_comment(self),
             ',' => read_comma(self),
-            ':' => read_atom(self),
+            ch if ch.is_uppercase() || ch.eq(&':') => read_atom(self),
             '?' => read_char(self),
+            '.' => read_dot(self),
             ch if is_newline(ch) => read_newline(self),
             ch if is_quote(ch) => read_quote(self),
             ch if is_delim(ch) => read_delim(self),
@@ -88,6 +90,19 @@ impl Iterator for Lexer {
             _ => None,
         }
     }
+}
+
+fn read_at(lex: &mut Lexer) -> Option<Token> {
+    let at = lex.read()?;
+
+    Some(Token::new(TokenKind::At, at.to_string()))
+}
+
+fn read_dot(lex: &mut Lexer) -> Option<Token> {
+    // also read `..` for ranges
+    let dot = lex.read_while(|c| c.eq(&'.'))?;
+
+    Some(Token::new(TokenKind::Dot, dot))
 }
 
 fn read_comment(lex: &mut Lexer) -> Option<Token> {
@@ -123,7 +138,7 @@ fn read_atom(lex: &mut Lexer) -> Option<Token> {
     }
 
     // IMPROVE ME double colon is
-    // a macro for defininf typespecs
+    // a macro for defining typespecs
     read_operator(lex)
 }
 
@@ -214,14 +229,7 @@ fn is_number(ch: &char) -> bool {
 }
 
 fn is_extra_literal(ch: &char) -> bool {
-    ch.eq(&'_')
-        || ch.eq(&'@')
-        || ch.eq(&'?')
-        || ch.eq(&'!')
-        || ch.eq(&'{')
-        || ch.eq(&'%')
-        || ch.eq(&'}')
-        || ch.eq(&'.')
+    ch.eq(&'_') || ch.eq(&'?') || ch.eq(&'!')
 }
 
 fn is_newline(ch: &char) -> bool {
@@ -500,11 +508,14 @@ mod lexer {
     }
 
     #[test]
-    fn should_read_module_identifier() {
+    fn should_read_module_attribute() {
         let id = "@doc";
-        let token = Lexer::new(id).next().unwrap();
+        let mut lex = Lexer::new(id);
+        // @ symbol
+        assert!(lex.next().unwrap().kind().is_at());
+        let token = lex.next().unwrap();
         assert!(token.kind().is_identifier());
-        assert_eq!(token.lexeme(), id.to_string());
+        assert_eq!(token.lexeme(), "doc".to_string());
     }
 
     #[test]
@@ -536,7 +547,7 @@ mod lexer {
             \! && <- || ||| == != =~ === 
             \!== < > <= >= |> <<< >>> <<~
             \~>> <~ ~> <~> <|> +++ --- <> 
-            \++ -- => :: | // .. .
+            \++ -- => :: | //
             "##;
         let mut lex = Lexer::new(ops);
 

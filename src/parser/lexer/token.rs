@@ -6,12 +6,14 @@ pub struct Token {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TokenKind {
+    At, // @
     Atom,
     Boolean, // bools are atoms although
     Char,    // codepoint ?a
     Comment,
     Comma,
     Delimiter, // (), {}, []
+    Dot,
     Identifier,
     Newline,
     Number, // int, float, bin, oct, hex
@@ -35,6 +37,10 @@ impl Token {
 }
 
 impl TokenKind {
+    pub fn is_at(&self) -> bool {
+        matches!(self, TokenKind::At)
+    }
+
     pub fn is_atom(&self) -> bool {
         matches!(self, TokenKind::Atom)
     }
@@ -57,6 +63,10 @@ impl TokenKind {
 
     pub fn is_delimiter(&self) -> bool {
         matches!(self, TokenKind::Delimiter)
+    }
+
+    pub fn is_dot(&self) -> bool {
+        matches!(self, TokenKind::Dot)
     }
 
     pub fn is_identifier(&self) -> bool {
