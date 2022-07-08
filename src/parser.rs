@@ -4,19 +4,31 @@ use std::cell::RefCell;
 
 pub mod lexer;
 
-#[derive(Debug)]
-struct Node {
+// ELixir only has Expressions
+pub type Expression = Result<Node>;
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct Node {
     tokens: Vec<Token>,
     kind: NodeKind,
 }
 
-#[derive(Debug)]
-enum NodeKind {
+#[derive(Debug, Eq, PartialEq)]
+pub enum NodeKind {
     AnonCall,
-    AnonLiteral,
+    Attribute, // @moduletag or @any
     BinaryOp,
+    Function,
+    Guard,
     HashMap,
+    HereDoc,
+    Import,
+    KeyWord,
+    Macro,
+    Module,
     List,
+    Protocol, // `defimpl` and `defprotocol`
+    Sigil,
     String,
     UnaryOp,
     Variable,
@@ -31,8 +43,6 @@ impl Node {
         "self".to_string()
     }
 }
-
-type Expression = Result<Node>;
 
 #[derive(Debug)]
 pub struct Parser {
@@ -72,16 +82,18 @@ impl Parser {
         let next = self.peek_token()?;
 
         match next.kind() {
-            TokenKind::Delimiter => match next.lexeme().as_str() {
-                "." => self.parse_anon_call(),
-                _ => unimplemented!(),
+            TokenKind::Delimiter => match next.kind() {
+                TokenKind::Dot => self.parse_anon_call(),
+                _ => bail!("Nothing to parse"),
             },
             _ => bail!("Cannot parse literal"),
         }
     }
 
     fn parse_anon_call(&mut self) -> Expression {
-        let tokens = self.read_token_while(|token| token.lexeme().eq(")"))?;
+        let mut tokens = self.read_token_while(|token| !token.lexeme().eq(")"))?;
+        // ")"
+        tokens.push(self.read_token()?.clone());
 
         Ok(Node::new(tokens, NodeKind::AnonCall))
     }
@@ -135,18 +147,14 @@ impl Parser {
     }
 }
 
-// TO BE IMPLEMENTED
-// impl IntoIterator for Parser {
-//     type Into = Vec<Expression>;
-// }
-//
-// impl Iterator for Parser {
-//     type Item = Expression;
-//
-//     fn next(&mut self) -> Option<Self::Item> {
-//
-//     }
-// }
+impl IntoIterator for Parser {
+    type Item = Expression;
+    type IntoIter = <Vec<Expression> as IntoIterator>::IntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.expressions.into_inner().into_iter()
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -295,5 +303,30 @@ mod tests {
 
             assert_eq!(p.cursor, 5);
         }
+    }
+
+    #[test]
+    #[should_panic]
+    fn should_push_expression() {
+        let mut p = Parser::new(setup("content"));
+        let token = Token::new(TokenKind::Identifier, "content".to_string());
+        let node = Node::new(vec![token], NodeKind::Variable);
+        p.push_expr(Ok(node));
+
+        assert!(p.expressions.into_inner().is_empty());
+    }
+
+    #[test]
+    fn should_parse_anon_call() {
+        let call = r#"anon.("jhon", 42)"#;
+        let mut p = Parser::new(setup(call));
+
+        assert!(p.peek_token().is_ok());
+        let anon = p.parse_anon_call();
+        p.push_expr(anon);
+
+        assert!(p.is_done());
+        let expr = p.into_iter().next().unwrap();
+        assert_eq!(expr.unwrap().kind, NodeKind::AnonCall);
     }
 }
