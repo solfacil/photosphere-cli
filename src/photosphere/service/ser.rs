@@ -1,4 +1,4 @@
-use super::{de::DEPS_START, dep::Env, Service};
+use super::{de::DEPS_START, Service};
 use anyhow::Result;
 use std::fs;
 

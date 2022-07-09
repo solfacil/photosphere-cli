@@ -184,7 +184,6 @@ impl Service {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::path::Path;
 
     #[test]
     fn set_no_auth() {

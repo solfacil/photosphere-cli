@@ -1,6 +1,5 @@
 use super::{dep::Env, Dep, Service};
 use anyhow::Result;
-use std::path::Path;
 
 pub const DEPS_START: &'static &str = &"# start deps";
 const DEPS_END: &'static &str = &"# end deps";

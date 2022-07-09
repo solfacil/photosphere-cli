@@ -1,50 +1,18 @@
 pub use self::lexer::{Lexer, Token, TokenKind};
 use anyhow::{anyhow, bail, Result};
+use ast::AnonCall;
 use std::cell::RefCell;
 
-pub mod lexer;
+mod ast;
+mod lexer;
 
-// ELixir only has Expressions
-pub type Expression = Result<Node>;
-
-#[derive(Debug, Eq, PartialEq)]
-pub struct Node {
-    tokens: Vec<Token>,
-    kind: NodeKind,
+pub trait Node {
+    fn to_string(&self) -> String;
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub enum NodeKind {
-    AnonCall,
-    Attribute, // @moduletag or @any
-    BinaryOp,
-    Function,
-    Guard,
-    HashMap,
-    HereDoc,
-    Import,
-    KeyWord,
-    Macro,
-    Module,
-    List,
-    Protocol, // `defimpl` and `defprotocol`
-    Sigil,
-    String,
-    UnaryOp,
-    Variable,
-}
+// Elixir only has expressions
+type Expression = Result<Box<dyn Node>>;
 
-impl Node {
-    pub fn new(tokens: Vec<Token>, kind: NodeKind) -> Self {
-        Node { tokens, kind }
-    }
-
-    pub fn to_string(_self: &Self) -> String {
-        "self".to_string()
-    }
-}
-
-#[derive(Debug)]
 pub struct Parser {
     cursor: usize,
     expressions: RefCell<Vec<Expression>>,
@@ -73,29 +41,48 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Expression {
         match self.peek_token()?.kind() {
-            TokenKind::Identifier => self.parse_literal(),
+            // TokenKind::At => self.parse_attribute(),
+            TokenKind::Identifier => self.parse_identifier(),
+            // TokenKind::Delimiter => self.parse_delimited(),
             _ => bail!("Cannot parse expression"),
         }
     }
 
-    fn parse_literal(&mut self) -> Expression {
-        let next = self.peek_token()?;
+    // fn parse_attribute(&mut self) {
+    //     // attribute literal `@any`
+    //     let mut tokens = self.read_token_while(|t| !t.kind().is_whitespace())?;
+    //
+    //     let mut value = self.parse_expression()?;
+    //     tokens.append(&mut value);
+    // }
 
-        match next.kind() {
-            TokenKind::Delimiter => match next.kind() {
-                TokenKind::Dot => self.parse_anon_call(),
-                _ => bail!("Nothing to parse"),
-            },
-            _ => bail!("Cannot parse literal"),
+    fn parse_identifier(&mut self) -> Expression {
+        let ahead = self.peek_token_ahead(1)?;
+
+        match ahead.kind() {
+            TokenKind::Dot => self.parse_anon_call(),
+            _ => todo!(),
         }
     }
 
-    fn parse_anon_call(&mut self) -> Expression {
-        let mut tokens = self.read_token_while(|token| !token.lexeme().eq(")"))?;
-        // ")"
-        tokens.push(self.read_token()?.clone());
+    // fn parse_delimited(&mut self) -> Expression {
+    //     let next = self.peek_token()?;
+    //
+    //     match next.lexeme().as_str() {
+    //         "[" => self.parse_list(),
+    //         "%" => self.parse_hashmap(),
+    //         "{" => self.parse_tuple(),
+    //         _ => bail!("Cannot parse delimited by {}", next.lexeme()),
+    //     }
+    // }
 
-        Ok(Node::new(tokens, NodeKind::AnonCall))
+    fn parse_anon_call(&mut self) -> Expression {
+        let identifier = self.read_token()?;
+        self.skip(2)?; // skip `.` and `(`
+        let args = self.read_token_while(|t| !t.lexeme().eq(")"))?;
+        self.skip(1)?;
+
+        Ok(Box::new(AnonCall::new(identifier, args)))
     }
 
     fn push_expr(&mut self, expr: Expression) {
@@ -108,13 +95,19 @@ impl Parser {
         self.tokens[..].get(self.cursor).ok_or(err_msg)
     }
 
-    fn read_token(&mut self) -> Result<&Token> {
+    fn peek_token_ahead(&mut self, offset: usize) -> Result<&Token> {
+        let err_msg = anyhow!("Cannot read {}nth token ahead", offset);
+
+        self.tokens[..].get(self.cursor + offset).ok_or(err_msg)
+    }
+
+    fn read_token(&mut self) -> Result<Token> {
         let tokens = &self.tokens;
 
         if let Some(token) = tokens[..].get(self.cursor) {
             self.cursor += 1;
 
-            return Ok(token);
+            return Ok(token.clone());
         }
 
         bail!("Cannot read current token")
@@ -140,6 +133,14 @@ impl Parser {
         }
 
         Ok(tokens)
+    }
+
+    fn skip(&mut self, offset: usize) -> Result<()> {
+        for _ in 0..offset {
+            self.read_token()?;
+        }
+
+        Ok(())
     }
 
     fn is_done(&self) -> bool {
@@ -305,28 +306,68 @@ mod tests {
         }
     }
 
-    #[test]
-    #[should_panic]
-    fn should_push_expression() {
-        let mut p = Parser::new(setup("content"));
-        let token = Token::new(TokenKind::Identifier, "content".to_string());
-        let node = Node::new(vec![token], NodeKind::Variable);
-        p.push_expr(Ok(node));
+    mod skip {
+        use super::*;
 
-        assert!(p.expressions.into_inner().is_empty());
+        #[test]
+        fn empty() {
+            let mut p = Parser::new(setup(""));
+            assert!(p.skip(2).is_err());
+            assert!(p.cursor < 1);
+        }
+
+        #[test]
+        fn in_progress() {
+            let mut p = Parser::new(setup("{1, 2}"));
+            p.skip(1).unwrap();
+            assert!(p.cursor == 1);
+        }
+
+        #[test]
+        #[should_panic]
+        fn is_done() {
+            let mut p = Parser::new(setup("1"));
+            p.skip(1).unwrap();
+            assert!(p.cursor == 1);
+            p.skip(1).unwrap();
+        }
     }
 
-    #[test]
-    fn should_parse_anon_call() {
-        let call = r#"anon.("jhon", 42)"#;
-        let mut p = Parser::new(setup(call));
+    // #[test]
+    // #[should_panic]
+    // fn should_push_expression() {
+    //     let mut p = Parser::new(setup("content"));
+    //     let token = Token::new(TokenKind::Identifier, "content".to_string());
+    //     let node = Node::new(vec![token], NodeKind::Variable);
+    //     p.push_expr(Ok(node));
+    //
+    //     assert!(p.expressions.into_inner().is_empty());
+    // }
 
-        assert!(p.peek_token().is_ok());
-        let anon = p.parse_anon_call();
-        p.push_expr(anon);
-
-        assert!(p.is_done());
-        let expr = p.into_iter().next().unwrap();
-        assert_eq!(expr.unwrap().kind, NodeKind::AnonCall);
-    }
+    // #[test]
+    // fn should_parse_anon_call() {
+    //     let call = r#"anon.("jhon", 42)"#;
+    //     let mut p = Parser::new(setup(call));
+    //
+    //     assert!(p.peek_token().is_ok());
+    //     let anon = p.parse_anon_call();
+    //     p.push_expr(anon);
+    //
+    //     assert!(p.is_done());
+    //     let expr = p.into_iter().next().unwrap();
+    //     assert_eq!(expr.unwrap().kind(), NodeKind::AnonCall);
+    // }
+    //
+    // #[test]
+    // fn should_parse_attribute() {
+    //     let attr = "@moduledoc";
+    //     let mut p = Parser::new(setup(attr));
+    //
+    //     let parsed = p.parse_attribute();
+    //     p.push_expr(parsed);
+    //
+    //     assert!(p.is_done());
+    //     let expr = p.into_iter().next().unwrap();
+    //     assert_eq!(expr.unwrap().kind(), NodeKind::Attribute);
+    // }
 }
