@@ -15,11 +15,9 @@ pub enum TokenKind {
     Delimiter, // (), {}, []
     Dot,
     Identifier,
-    Newline,
     Number, // int, float, bin, oct, hex
     Operator,
     Quote,
-    WhiteSpace,
 }
 
 impl Token {
@@ -73,10 +71,6 @@ impl TokenKind {
         matches!(self, TokenKind::Identifier)
     }
 
-    pub fn is_newline(&self) -> bool {
-        matches!(self, TokenKind::Newline)
-    }
-
     pub fn is_number(&self) -> bool {
         matches!(self, TokenKind::Number)
     }
@@ -87,9 +81,5 @@ impl TokenKind {
 
     pub fn is_quote(&self) -> bool {
         matches!(self, TokenKind::Quote)
-    }
-
-    pub fn is_whitespace(&self) -> bool {
-        matches!(self, TokenKind::WhiteSpace)
     }
 }

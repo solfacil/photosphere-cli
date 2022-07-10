@@ -3,11 +3,10 @@ use std::char;
 
 mod token;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Lexer {
     cursor: usize,
     input: Vec<char>,
-    skip_whitespace: bool,
 }
 
 impl Lexer {
@@ -15,17 +14,35 @@ impl Lexer {
         Lexer {
             cursor: usize::MIN,
             input: string.chars().collect(),
-            skip_whitespace: false,
         }
     }
 
-    pub fn skip_whitespace(&mut self) {
-        self.skip_whitespace = true;
+    fn tokenize(&mut self) -> Option<Token> {
+        if is_blank(&self.peek()?) {
+            self.cursor += 1;
+        }
+
+        let peek = self.peek()?;
+
+        match &peek {
+            '@' => self.read_at(),
+            '#' => self.read_comment(),
+            ',' => self.read_comma(),
+            '?' => self.read_char(),
+            '.' => self.read_dot(),
+            ch if ch.is_uppercase() || ch.eq(&':') => self.read_atom(),
+            ch if is_quote(ch) => self.read_quote(),
+            ch if is_delim(ch) => self.read_delim(),
+            ch if is_operator(ch) => self.read_operator(),
+            ch if ch.is_numeric() => self.read_number(),
+            ch if is_identifier(ch) => self.read_identifier(),
+            _ => None,
+        }
     }
 
     // consumes a char and advances to next
-    fn read(&mut self) -> Option<&char> {
-        if let Some(ch) = self.input.get(self.cursor) {
+    fn read(&mut self) -> Option<char> {
+        if let Some(ch) = self.peek() {
             self.cursor += 1;
 
             return Some(ch);
@@ -43,12 +60,12 @@ impl Lexer {
         let mut string = String::new();
 
         while let Some(next) = self.peek() {
-            if !pred(next) {
+            if !pred(&next) {
                 break;
             }
 
             let ch = self.read()?;
-            string.push(*ch);
+            string.push(ch);
         }
 
         if string.is_empty() {
@@ -59,17 +76,95 @@ impl Lexer {
     }
 
     // "look ahead" to a N single char
-    fn peek_ahead(&self, cursor: usize) -> Option<&char> {
-        self.input.get(self.cursor + cursor)
+    fn peek_ahead(&self, cursor: usize) -> Option<char> {
+        self.input.get(self.cursor + cursor).cloned()
     }
 
     // "look ahead" to a single next char
-    fn peek(&self) -> Option<&char> {
-        self.input.get(self.cursor)
+    fn peek(&self) -> Option<char> {
+        self.input.get(self.cursor).cloned()
     }
 
     fn is_done(&self) -> bool {
         self.cursor >= self.input.len()
+    }
+
+    fn read_at(&mut self) -> Option<Token> {
+        let at = self.read()?;
+
+        Some(Token::new(TokenKind::At, at.to_string()))
+    }
+
+    fn read_dot(&mut self) -> Option<Token> {
+        // also read `..` for ranges
+        let dot = self.read_while(|c| c.eq(&'.'))?;
+
+        Some(Token::new(TokenKind::Dot, dot))
+    }
+
+    fn read_comment(&mut self) -> Option<Token> {
+        let comment = self.read_while(|ch| !is_newline(ch))?;
+
+        Some(Token::new(TokenKind::Comment, comment))
+    }
+
+    fn read_comma(&mut self) -> Option<Token> {
+        let comma = self.read()?.to_string();
+
+        Some(Token::new(TokenKind::Comma, comma))
+    }
+
+    fn read_char(&mut self) -> Option<Token> {
+        let char = self.read_while(is_char)?;
+
+        Some(Token::new(TokenKind::Char, char))
+    }
+
+    fn read_atom(&mut self) -> Option<Token> {
+        let next = self.peek_ahead(1)?;
+        if next.is_alphanumeric() || is_quote(&next) {
+            let atom = self.read_while(is_atom)?;
+
+            return Some(Token::new(TokenKind::Atom, atom));
+        }
+
+        // IMPROVE ME double colon is
+        // a macro for defining typespecs
+        self.read_operator()
+    }
+
+    fn read_quote(&mut self) -> Option<Token> {
+        let quote = self.read()?.to_string();
+
+        Some(Token::new(TokenKind::Quote, quote))
+    }
+
+    fn read_number(&mut self) -> Option<Token> {
+        let number = self.read_while(is_number)?;
+
+        Some(Token::new(TokenKind::Number, number))
+    }
+
+    fn read_identifier(&mut self) -> Option<Token> {
+        let id = self.read_while(is_identifier)?;
+
+        if is_bool_literal(&id) {
+            return Some(Token::new(TokenKind::Boolean, id));
+        }
+
+        Some(Token::new(TokenKind::Identifier, id))
+    }
+
+    fn read_delim(&mut self) -> Option<Token> {
+        let delim = self.read()?;
+
+        Some(Token::new(TokenKind::Delimiter, delim.to_string()))
+    }
+
+    fn read_operator(&mut self) -> Option<Token> {
+        let op = self.read_while(is_operator)?;
+
+        Some(Token::new(TokenKind::Operator, op))
     }
 }
 
@@ -77,119 +172,8 @@ impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.skip_whitespace && self.peek()?.is_whitespace() {
-            self.read()?;
-        }
-
-        let peek = self.peek()?;
-
-        match peek {
-            '@' => read_at(self),
-            '#' => read_comment(self),
-            ',' => read_comma(self),
-            ch if ch.is_uppercase() || ch.eq(&':') => read_atom(self),
-            '?' => read_char(self),
-            '.' => read_dot(self),
-            ch if is_newline(ch) => read_newline(self),
-            ch if is_quote(ch) => read_quote(self),
-            ch if is_delim(ch) => read_delim(self),
-            ch if is_operator(ch) => read_operator(self),
-            ch if ch.is_numeric() => read_number(self),
-            ch if is_identifier(ch) => read_identifier(self),
-            ch if ch.is_whitespace() => read_whitespace(self),
-            _ => None,
-        }
+        self.tokenize()
     }
-}
-
-fn read_at(lex: &mut Lexer) -> Option<Token> {
-    let at = lex.read()?;
-
-    Some(Token::new(TokenKind::At, at.to_string()))
-}
-
-fn read_dot(lex: &mut Lexer) -> Option<Token> {
-    // also read `..` for ranges
-    let dot = lex.read_while(|c| c.eq(&'.'))?;
-
-    Some(Token::new(TokenKind::Dot, dot))
-}
-
-fn read_comment(lex: &mut Lexer) -> Option<Token> {
-    let comment = lex.read_while(|ch| !is_newline(ch))?;
-
-    Some(Token::new(TokenKind::Comment, comment))
-}
-
-fn read_newline(lex: &mut Lexer) -> Option<Token> {
-    let newline = lex.read()?.to_string();
-
-    Some(Token::new(TokenKind::Newline, newline))
-}
-
-fn read_comma(lex: &mut Lexer) -> Option<Token> {
-    let comma = lex.read()?.to_string();
-
-    Some(Token::new(TokenKind::Comma, comma))
-}
-
-fn read_char(lex: &mut Lexer) -> Option<Token> {
-    let char = lex.read_while(is_char)?;
-
-    Some(Token::new(TokenKind::Char, char))
-}
-
-fn read_atom(lex: &mut Lexer) -> Option<Token> {
-    let next = lex.peek_ahead(1)?;
-    if next.is_alphanumeric() || is_quote(next) {
-        let atom = lex.read_while(is_atom)?;
-
-        return Some(Token::new(TokenKind::Atom, atom));
-    }
-
-    // IMPROVE ME double colon is
-    // a macro for defining typespecs
-    read_operator(lex)
-}
-
-fn read_quote(lex: &mut Lexer) -> Option<Token> {
-    let quote = lex.read()?.to_string();
-
-    Some(Token::new(TokenKind::Quote, quote))
-}
-
-fn read_whitespace(lex: &mut Lexer) -> Option<Token> {
-    let ws = lex.read_while(&|c: &char| c.is_whitespace())?;
-
-    Some(Token::new(TokenKind::WhiteSpace, ws))
-}
-
-fn read_number(lex: &mut Lexer) -> Option<Token> {
-    let number = lex.read_while(is_number)?;
-
-    Some(Token::new(TokenKind::Number, number))
-}
-
-fn read_identifier(lex: &mut Lexer) -> Option<Token> {
-    let id = lex.read_while(is_identifier)?;
-
-    if is_bool_literal(&id) {
-        return Some(Token::new(TokenKind::Boolean, id));
-    }
-
-    Some(Token::new(TokenKind::Identifier, id))
-}
-
-fn read_delim(lex: &mut Lexer) -> Option<Token> {
-    let delim = lex.read()?;
-
-    Some(Token::new(TokenKind::Delimiter, delim.to_string()))
-}
-
-fn read_operator(lex: &mut Lexer) -> Option<Token> {
-    let op = lex.read_while(is_operator)?;
-
-    Some(Token::new(TokenKind::Operator, op))
 }
 
 fn is_atom(ch: &char) -> bool {
@@ -246,186 +230,150 @@ fn is_newline(ch: &char) -> bool {
     ch.eq(&'\n') || ch.eq(&'\t') || ch.eq(&'\r')
 }
 
-#[cfg(test)]
-mod cursor {
-    use super::*;
-
-    #[test]
-    fn empty() {
-        let lex = Lexer::new("");
-
-        assert_eq!(lex.cursor, 0);
-    }
-
-    #[test]
-    fn in_progress() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-
-        assert_eq!(lex.cursor, 1);
-    }
-
-    #[test]
-    fn is_done() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-        lex.read();
-        lex.read();
-
-        assert_eq!(lex.cursor, 3);
-    }
+fn is_blank(ch: &char) -> bool {
+    is_newline(ch) || ch.is_whitespace()
 }
 
 #[cfg(test)]
-mod peek {
+mod tests {
     use super::*;
 
-    #[test]
-    fn empty() {
-        let lex = Lexer::new("");
+    mod cursor {
+        use super::*;
 
-        assert_eq!(lex.peek(), None)
+        #[test]
+        fn empty() {
+            let lex = Lexer::new("");
+            assert_eq!(lex.cursor, 0);
+        }
+
+        #[test]
+        fn in_progress() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            assert_eq!(lex.cursor, 1);
+        }
+
+        #[test]
+        fn is_done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            lex.read();
+            lex.read();
+            assert_eq!(lex.cursor, 3);
+        }
     }
 
-    #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc");
-        lex.read();
+    #[cfg(test)]
+    mod peek {
+        use super::*;
 
-        assert_eq!(lex.peek(), Some(&'b'))
+        #[test]
+        fn empty() {
+            let lex = Lexer::new("");
+            assert!(lex.peek().is_none());
+        }
+
+        #[test]
+        fn not_done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            assert_eq!(lex.peek(), Some('b'));
+        }
+
+        #[test]
+        fn id_done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            lex.read();
+            lex.read();
+            assert!(lex.peek().is_none());
+        }
     }
 
-    #[test]
-    fn id_done() {
-        let mut lex = Lexer::new("abc");
-        lex.read();
-        lex.read();
-        lex.read();
+    #[cfg(test)]
+    mod peek_ahead {
+        use super::*;
 
-        assert_eq!(lex.peek(), None)
-    }
-}
+        #[test]
+        fn empty() {
+            let lex = Lexer::new("");
+            assert!(lex.peek_ahead(1).is_none());
+        }
 
-#[cfg(test)]
-mod peek_ahead {
-    use super::*;
+        #[test]
+        fn not_done() {
+            let mut lex = Lexer::new("abc213");
+            lex.read();
+            assert_eq!(lex.peek_ahead(1), Some('c'));
+            assert_eq!(lex.peek_ahead(2), Some('2'));
+            assert!(lex.peek_ahead(10).is_none());
+        }
 
-    #[test]
-    fn empty() {
-        let lex = Lexer::new("");
-        assert_eq!(lex.peek_ahead(1), None);
-    }
-
-    #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc213");
-        lex.read();
-        assert_eq!(lex.peek_ahead(1), Some(&'c'));
-        assert_eq!(lex.peek_ahead(2), Some(&'2'));
-        assert_eq!(lex.peek_ahead(10), None);
+        #[test]
+        fn done() {
+            let mut lex = Lexer::new("a");
+            lex.read();
+            assert!(lex.peek_ahead(1).is_none());
+        }
     }
 
-    #[test]
-    fn done() {
-        let mut lex = Lexer::new("a");
-        lex.read();
-        assert_eq!(lex.peek_ahead(1), None);
-    }
-}
+    #[cfg(test)]
+    mod read {
+        use super::*;
 
-#[cfg(test)]
-mod read {
-    use super::*;
+        #[test]
+        fn empty() {
+            let mut lex = Lexer::new("");
+            assert!(lex.read().is_none());
+            assert_eq!(lex.cursor, 0);
+        }
 
-    #[test]
-    fn empty() {
-        let mut lex = Lexer::new("");
+        #[test]
+        fn not_done() {
+            let mut lex = Lexer::new("abc");
+            assert_eq!(lex.read(), Some('a'));
+            assert_eq!(lex.cursor, 1);
+        }
 
-        assert_eq!(lex.read(), None);
-        assert_eq!(lex.cursor, 0);
-    }
-
-    #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc");
-
-        assert_eq!(lex.read(), Some(&'a'));
-        assert_eq!(lex.cursor, 1);
-    }
-
-    #[test]
-    fn done() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-        lex.read();
-        lex.read();
-
-        assert_eq!(lex.read(), None);
-        assert_eq!(lex.cursor, 3);
-    }
-}
-
-#[cfg(test)]
-mod is_done {
-    use super::*;
-
-    #[test]
-    fn emtpy() {
-        let lex = Lexer::new("");
-
-        assert!(lex.is_done())
+        #[test]
+        fn done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            lex.read();
+            lex.read();
+            assert!(lex.read().is_none());
+            assert_eq!(lex.cursor, 3);
+        }
     }
 
-    #[test]
-    fn not_done() {
-        let mut lex = Lexer::new("abc");
+    #[cfg(test)]
+    mod is_done {
+        use super::*;
 
-        lex.read();
+        #[test]
+        fn emtpy() {
+            let lex = Lexer::new("");
+            assert!(lex.is_done())
+        }
 
-        assert_eq!(lex.is_done(), false)
+        #[test]
+        #[should_panic]
+        fn not_done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            assert!(lex.is_done())
+        }
+
+        #[test]
+        fn done() {
+            let mut lex = Lexer::new("abc");
+            lex.read();
+            lex.read();
+            lex.read();
+            assert!(lex.is_done())
+        }
     }
-
-    #[test]
-    fn done() {
-        let mut lex = Lexer::new("abc");
-
-        lex.read();
-        lex.read();
-        lex.read();
-
-        assert!(lex.is_done())
-    }
-}
-
-#[cfg(test)]
-mod skip_whitespace {
-    use super::*;
-
-    #[test]
-    fn empty() {
-        let c = "";
-        let mut lex = Lexer::new(c);
-        lex.skip_whitespace();
-        lex.next();
-        assert!(lex.is_done());
-    }
-
-    #[test]
-    fn in_progress() {
-        let c = "1 + 2";
-        let mut lex = Lexer::new(c);
-        lex.skip_whitespace();
-        lex.next().unwrap();
-        assert!(lex.next().unwrap().kind().is_operator());
-    }
-}
-
-#[cfg(test)]
-mod lexer {
-    use super::*;
 
     #[test]
     fn should_read_atom() {
@@ -494,10 +442,9 @@ mod lexer {
     #[test]
     fn should_read_delims() {
         let delims = "{}()[]";
-        let mut lex = Lexer::new(delims);
+        let tokens = Lexer::new(delims).into_iter();
 
-        while !lex.is_done() {
-            let token = lex.next().unwrap();
+        for token in tokens {
             assert!(token.kind().is_delimiter());
         }
     }
@@ -519,13 +466,9 @@ mod lexer {
         assert!(t.kind().is_boolean());
         assert_eq!(t.lexeme(), "true".to_string());
 
-        lex.next();
-
         let f = lex.next().unwrap();
         assert!(f.kind().is_boolean());
         assert_eq!(f.lexeme(), "false".to_string());
-
-        lex.next();
 
         let n = lex.next().unwrap();
         assert!(n.kind().is_boolean());
@@ -545,7 +488,8 @@ mod lexer {
         let id = "@doc";
         let mut lex = Lexer::new(id);
         // @ symbol
-        assert!(lex.next().unwrap().kind().is_at());
+        let at = lex.next().unwrap();
+        assert!(at.kind().is_at());
         let token = lex.next().unwrap();
         assert!(token.kind().is_identifier());
         assert_eq!(token.lexeme(), "doc".to_string());
@@ -582,16 +526,9 @@ mod lexer {
             \~>> <~ ~> <~> <|> +++ --- <> 
             \++ -- => :: | //
             "##;
-        let mut lex = Lexer::new(ops);
+        let tokens = Lexer::new(ops).into_iter();
 
-        while !lex.is_done() {
-            let token = lex.next().unwrap();
-            let kind = token.kind();
-
-            if kind.is_whitespace() || kind.is_newline() {
-                continue;
-            }
-
+        for token in tokens {
             assert!(token.kind().is_operator());
         }
     }
@@ -603,39 +540,4 @@ mod lexer {
         assert!(token.kind().is_comment());
         assert_eq!(token.lexeme(), comment.to_string());
     }
-
-    #[test]
-    fn should_read_newline() {
-        let newline = "\n";
-        let token = Lexer::new(newline).next().unwrap();
-        assert!(token.kind().is_newline());
-        assert_eq!(token.lexeme(), newline.to_string());
-    }
-
-    // use std::fs::File;
-    // use std::io::Write;
-    // use std::path::Path;
-
-    // for manual token checking
-    // #[test]
-    // fn read_mix_exs() {
-    //     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    //     let p = root.join("priv").join("mix.exs");
-    //     let c = std::fs::read_to_string(p).unwrap();
-    //
-    //     let mut lex = Lexer::new(&c);
-    //     let mut f = File::create("tokens.txt").unwrap();
-    //
-    //     loop {
-    //         if lex.cursor > 0 && lex.is_done() {
-    //             break;
-    //         }
-    //
-    //         let t = lex.next();
-    //         println!("{:?}", t);
-    //         writeln!(&mut f, "{:?}", t.unwrap()).unwrap();
-    //     }
-    //
-    //     assert!(true);
-    // }
 }
