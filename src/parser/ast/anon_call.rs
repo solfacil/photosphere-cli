@@ -1,4 +1,4 @@
-use crate::parser::{Node, Token};
+use crate::parser::{Node, NodeKind, Token, TokenKind};
 
 pub struct AnonCall {
     identifier: Token,
@@ -12,6 +12,10 @@ impl AnonCall {
 }
 
 impl Node for AnonCall {
+    fn kind(&self) -> NodeKind {
+        NodeKind::AnonCall
+    }
+
     fn to_string(&self) -> String {
         let mut init = format!("{}.(", self.identifier.lexeme());
 
@@ -19,6 +23,23 @@ impl Node for AnonCall {
             init.push_str(arg.lexeme().as_str());
         }
 
+        init.push_str(")");
+
         init.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn to_string() {
+        let ident = Token::new(TokenKind::Identifier, "anon".to_string());
+        let args = vec![Token::new(TokenKind::Number, "42".to_string())];
+
+        let anon_call = AnonCall::new(ident, args);
+
+        assert_eq!(anon_call.to_string(), "anon.(42)".to_string());
     }
 }

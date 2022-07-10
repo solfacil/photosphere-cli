@@ -8,6 +8,12 @@ mod lexer;
 
 pub trait Node {
     fn to_string(&self) -> String;
+    fn kind(&self) -> NodeKind;
+}
+
+#[derive(Debug, Eq, PartialEq)]
+pub enum NodeKind {
+    AnonCall,
 }
 
 // Elixir only has expressions
@@ -333,30 +339,29 @@ mod tests {
         }
     }
 
-    // #[test]
-    // #[should_panic]
-    // fn should_push_expression() {
-    //     let mut p = Parser::new(setup("content"));
-    //     let token = Token::new(TokenKind::Identifier, "content".to_string());
-    //     let node = Node::new(vec![token], NodeKind::Variable);
-    //     p.push_expr(Ok(node));
-    //
-    //     assert!(p.expressions.into_inner().is_empty());
-    // }
+    #[test]
+    #[should_panic]
+    fn should_push_expression() {
+        let mut p = Parser::new(setup(""));
+        let err = Err(anyhow!("Nothing to parse..."));
+        p.push_expr(err);
 
-    // #[test]
-    // fn should_parse_anon_call() {
-    //     let call = r#"anon.("jhon", 42)"#;
-    //     let mut p = Parser::new(setup(call));
-    //
-    //     assert!(p.peek_token().is_ok());
-    //     let anon = p.parse_anon_call();
-    //     p.push_expr(anon);
-    //
-    //     assert!(p.is_done());
-    //     let expr = p.into_iter().next().unwrap();
-    //     assert_eq!(expr.unwrap().kind(), NodeKind::AnonCall);
-    // }
+        assert!(p.expressions.into_inner().is_empty());
+    }
+
+    #[test]
+    fn should_parse_anon_call() {
+        let call = r#"anon.("jhon", 42)"#;
+        let mut p = Parser::new(setup(call));
+
+        assert!(p.peek_token().is_ok());
+        let anon = p.parse_anon_call();
+        p.push_expr(anon);
+
+        assert!(p.is_done());
+        let expr = p.into_iter().next().unwrap();
+        assert_eq!(expr.unwrap().kind(), NodeKind::AnonCall);
+    }
     //
     // #[test]
     // fn should_parse_attribute() {

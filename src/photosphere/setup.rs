@@ -1,9 +1,4 @@
-use super::{
-    service,
-    service::Service,
-    str_utils,
-    validations::get_project_name,
-};
+use super::{service, service::Service, str_utils, validations::get_project_name};
 use crate::ServiceArgs;
 use anyhow::Result;
 use std::{io::Error, path::Path, process::Command};
