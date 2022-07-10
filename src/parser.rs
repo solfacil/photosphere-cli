@@ -1,5 +1,5 @@
+use self::ast::*;
 pub use self::lexer::{Lexer, Token, TokenKind};
-use ast::{AnonCall, Attribute, Boolean, List, Number};
 
 mod ast;
 mod lexer;
@@ -12,10 +12,12 @@ pub trait Node {
 #[derive(Debug, Eq, PartialEq)]
 pub enum NodeKind {
     AnonCall,
+    Atom,
     Attribute,
     Boolean,
     List,
     Number,
+    Tuple,
 }
 
 // IMPROVE ME use `Result` instead?
@@ -43,6 +45,7 @@ impl Parser {
             TokenKind::Delimiter => self.parse_delimited(),
             TokenKind::Number => self.parse_number(),
             TokenKind::Boolean => self.parse_boolean(),
+            TokenKind::Atom => self.parse_atom(),
             _ => None,
         }
     }
@@ -76,13 +79,19 @@ impl Parser {
         Some(Box::new(Boolean::from(token)))
     }
 
+    fn parse_atom(&mut self) -> Expression {
+        let token = self.read_token()?;
+
+        Some(Box::new(Atom::from(token)))
+    }
+
     fn parse_delimited(&mut self) -> Expression {
         let next = self.peek_token()?;
 
         match next.lexeme().as_str() {
             "[" => self.parse_list(),
             // "%" => self.parse_hashmap(),
-            // "{" => self.parse_tuple(),
+            "{" => self.parse_tuple(),
             _ => None,
         }
     }
@@ -98,6 +107,18 @@ impl Parser {
         }
 
         Some(Box::new(List::new(elems)))
+    }
+
+    fn parse_tuple(&mut self) -> Expression {
+        self.cursor += 1;
+
+        let mut elems = Vec::<Box<dyn Node>>::new();
+
+        while !self.peek_token()?.kind().is_delimiter() {
+            elems.push(self.parse_expression()?);
+        }
+
+        Some(Box::new(Tuple::new(elems)))
     }
 
     fn parse_anon_call(&mut self) -> Expression {
@@ -328,8 +349,20 @@ mod tests {
     }
 
     #[test]
+    fn should_parse_atom() {
+        let expr = Parser::new(setup(":error")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Atom);
+    }
+
+    #[test]
     fn should_parse_list() {
         let expr = Parser::new(setup("[42, 42]")).next().unwrap();
         assert_eq!(expr.kind(), NodeKind::List);
+    }
+
+    #[test]
+    fn should_parse_tuple() {
+        let expr = Parser::new(setup("{:ok, 42}")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Tuple);
     }
 }
