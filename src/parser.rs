@@ -1,5 +1,5 @@
 pub use self::lexer::{Lexer, Token, TokenKind};
-use ast::{AnonCall, Attribute, Boolean, Number};
+use ast::{AnonCall, Attribute, Boolean, List, Number};
 
 mod ast;
 mod lexer;
@@ -40,7 +40,7 @@ impl Parser {
         match self.peek_token()?.kind() {
             TokenKind::At => self.parse_attribute(),
             TokenKind::Identifier => self.parse_identifier(),
-            // TokenKind::Delimiter => self.parse_delimited(),
+            TokenKind::Delimiter => self.parse_delimited(),
             TokenKind::Number => self.parse_number(),
             TokenKind::Boolean => self.parse_boolean(),
             _ => None,
@@ -76,22 +76,29 @@ impl Parser {
         Some(Box::new(Boolean::from(token)))
     }
 
-    // fn parse_delimited(&mut self) -> Expression {
-    //     let next = self.peek_token()?;
-    //
-    //     match next.lexeme().as_str() {
-    //         "[" => self.parse_list(),
-    //         // "%" => self.parse_hashmap(),
-    //         // "{" => self.parse_tuple(),
-    //         _ => None,
-    //     }
-    // }
+    fn parse_delimited(&mut self) -> Expression {
+        let next = self.peek_token()?;
 
-    // fn parse_list(&mut self) -> Expression {
-    //     self.cursor += 1;
-    //
-    //     while 
-    // }
+        match next.lexeme().as_str() {
+            "[" => self.parse_list(),
+            // "%" => self.parse_hashmap(),
+            // "{" => self.parse_tuple(),
+            _ => None,
+        }
+    }
+
+    fn parse_list(&mut self) -> Expression {
+        self.cursor += 1;
+
+        let mut elems = Vec::<Box<dyn Node>>::new();
+
+        while !self.peek_token()?.kind().is_delimiter() {
+            println!("{:?}", self.peek_token());
+            elems.push(self.parse_expression()?);
+        }
+
+        Some(Box::new(List::new(elems)))
+    }
 
     fn parse_anon_call(&mut self) -> Expression {
         let identifier = self.read_token()?;
@@ -318,5 +325,11 @@ mod tests {
     fn should_parse_number() {
         let expr = Parser::new(setup("0b0101")).next().unwrap();
         assert_eq!(expr.kind(), NodeKind::Number);
+    }
+
+    #[test]
+    fn should_parse_list() {
+        let expr = Parser::new(setup("[42, 42]")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::List);
     }
 }

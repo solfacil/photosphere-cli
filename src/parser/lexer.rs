@@ -24,6 +24,8 @@ impl Lexer {
 
         if self.peek()?.eq(&',') {
             self.cursor += 1;
+
+            return self.tokenize();
         }
 
         let peek = self.peek()?;
