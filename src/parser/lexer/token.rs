@@ -11,7 +11,6 @@ pub enum TokenKind {
     Boolean, // bools are atoms although
     Char,    // codepoint ?a
     Comment,
-    Comma,
     Delimiter, // (), {}, []
     Dot,
     Identifier,
@@ -53,10 +52,6 @@ impl TokenKind {
 
     pub fn is_comment(&self) -> bool {
         matches!(self, TokenKind::Comment)
-    }
-
-    pub fn is_comma(&self) -> bool {
-        matches!(self, TokenKind::Comma)
     }
 
     pub fn is_delimiter(&self) -> bool {

@@ -23,7 +23,7 @@ impl Node for AnonCall {
             init.push_str(arg.lexeme().as_str());
         }
 
-        init.push_str(")");
+        init.push(')');
 
         init.clone()
     }
