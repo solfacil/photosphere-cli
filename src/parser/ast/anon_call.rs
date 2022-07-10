@@ -37,7 +37,6 @@ mod tests {
     fn to_string() {
         let ident = Token::new(TokenKind::Identifier, "anon".to_string());
         let args = vec![Token::new(TokenKind::Number, "42".to_string())];
-
         let anon_call = AnonCall::new(ident, args);
 
         assert_eq!(anon_call.to_string(), "anon.(42)".to_string());

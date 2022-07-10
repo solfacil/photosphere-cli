@@ -1,6 +1,6 @@
 pub use self::lexer::{Lexer, Token, TokenKind};
 use anyhow::{anyhow, bail, Result};
-use ast::AnonCall;
+use ast::{AnonCall, Attribute};
 use std::cell::RefCell;
 
 mod ast;
@@ -14,6 +14,7 @@ pub trait Node {
 #[derive(Debug, Eq, PartialEq)]
 pub enum NodeKind {
     AnonCall,
+    Attribute,
 }
 
 // Elixir only has expressions
@@ -47,20 +48,20 @@ impl Parser {
 
     fn parse_expression(&mut self) -> Expression {
         match self.peek_token()?.kind() {
-            // TokenKind::At => self.parse_attribute(),
+            TokenKind::At => self.parse_attribute(),
             TokenKind::Identifier => self.parse_identifier(),
             // TokenKind::Delimiter => self.parse_delimited(),
             _ => bail!("Cannot parse expression"),
         }
     }
 
-    // fn parse_attribute(&mut self) {
-    //     // attribute literal `@any`
-    //     let mut tokens = self.read_token_while(|t| !t.kind().is_whitespace())?;
-    //
-    //     let mut value = self.parse_expression()?;
-    //     tokens.append(&mut value);
-    // }
+    fn parse_attribute(&mut self) -> Expression {
+        self.skip(1);
+        let identifier = self.read_token()?;
+        let value = self.parse_expression()?;
+
+        Ok(Box::new(Attribute::new(identifier, value)))
+    }
 
     fn parse_identifier(&mut self) -> Expression {
         let ahead = self.peek_token_ahead(1)?;
