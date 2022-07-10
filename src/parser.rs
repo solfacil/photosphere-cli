@@ -1,5 +1,5 @@
 pub use self::lexer::{Lexer, Token, TokenKind};
-use ast::{AnonCall, Attribute};
+use ast::{AnonCall, Attribute, Boolean, Number};
 
 mod ast;
 mod lexer;
@@ -13,6 +13,9 @@ pub trait Node {
 pub enum NodeKind {
     AnonCall,
     Attribute,
+    Boolean,
+    List,
+    Number,
 }
 
 // IMPROVE ME use `Result` instead?
@@ -38,6 +41,8 @@ impl Parser {
             TokenKind::At => self.parse_attribute(),
             TokenKind::Identifier => self.parse_identifier(),
             // TokenKind::Delimiter => self.parse_delimited(),
+            TokenKind::Number => self.parse_number(),
+            TokenKind::Boolean => self.parse_boolean(),
             _ => None,
         }
     }
@@ -59,15 +64,33 @@ impl Parser {
         }
     }
 
+    fn parse_number(&mut self) -> Expression {
+        let token = self.read_token()?;
+
+        Some(Box::new(Number::from(token)))
+    }
+
+    fn parse_boolean(&mut self) -> Expression {
+        let token = self.read_token()?;
+
+        Some(Box::new(Boolean::from(token)))
+    }
+
     // fn parse_delimited(&mut self) -> Expression {
     //     let next = self.peek_token()?;
     //
     //     match next.lexeme().as_str() {
     //         "[" => self.parse_list(),
-    //         "%" => self.parse_hashmap(),
-    //      "{" => self.parse_tuple(),
-    //         _ => bail!("Cannot parse delimited by {}", next.lexeme()),
+    //         // "%" => self.parse_hashmap(),
+    //         // "{" => self.parse_tuple(),
+    //         _ => None,
     //     }
+    // }
+
+    // fn parse_list(&mut self) -> Expression {
+    //     self.cursor += 1;
+    //
+    //     while 
     // }
 
     fn parse_anon_call(&mut self) -> Expression {
@@ -281,9 +304,19 @@ mod tests {
     #[test]
     fn should_parse_attribute() {
         let attr = "@moduledoc anon.()";
-        let mut p = Parser::new(setup(attr));
-        let expr = p.next();
-        print!("{:?}", p);
-        assert_eq!(expr.unwrap().kind(), NodeKind::Attribute);
+        let expr = Parser::new(setup(attr)).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Attribute);
+    }
+
+    #[test]
+    fn should_parse_boolean() {
+        let expr = Parser::new(setup("true")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Boolean);
+    }
+
+    #[test]
+    fn should_parse_number() {
+        let expr = Parser::new(setup("0b0101")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Number);
     }
 }

@@ -18,7 +18,11 @@ impl Lexer {
     }
 
     fn tokenize(&mut self) -> Option<Token> {
-        if is_blank(&self.peek()?) {
+        while is_blank(&self.peek()?) {
+            self.cursor += 1;
+        }
+
+        if self.peek()?.eq(&',') {
             self.cursor += 1;
         }
 
@@ -27,7 +31,6 @@ impl Lexer {
         match &peek {
             '@' => self.read_at(),
             '#' => self.read_comment(),
-            ',' => self.read_comma(),
             '?' => self.read_char(),
             '.' => self.read_dot(),
             ch if ch.is_uppercase() || ch.eq(&':') => self.read_atom(),
@@ -106,12 +109,6 @@ impl Lexer {
         let comment = self.read_while(|ch| !is_newline(ch))?;
 
         Some(Token::new(TokenKind::Comment, comment))
-    }
-
-    fn read_comma(&mut self) -> Option<Token> {
-        let comma = self.read()?.to_string();
-
-        Some(Token::new(TokenKind::Comma, comma))
     }
 
     fn read_char(&mut self) -> Option<Token> {
