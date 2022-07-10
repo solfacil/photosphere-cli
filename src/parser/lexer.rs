@@ -7,6 +7,7 @@ mod token;
 pub struct Lexer {
     cursor: usize,
     input: Vec<char>,
+    skip_whitespace: bool,
 }
 
 impl Lexer {
@@ -14,7 +15,12 @@ impl Lexer {
         Lexer {
             cursor: usize::MIN,
             input: string.chars().collect(),
+            skip_whitespace: false,
         }
+    }
+
+    pub fn skip_whitespace(&mut self) {
+        self.skip_whitespace = true;
     }
 
     // consumes a char and advances to next
@@ -71,6 +77,10 @@ impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
+        if self.skip_whitespace && self.peek()?.is_whitespace() {
+            self.read()?;
+        }
+
         let peek = self.peek()?;
 
         match peek {
@@ -387,6 +397,29 @@ mod is_done {
         lex.read();
 
         assert!(lex.is_done())
+    }
+}
+
+#[cfg(test)]
+mod skip_whitespace {
+    use super::*;
+
+    #[test]
+    fn empty() {
+        let c = "";
+        let mut lex = Lexer::new(c);
+        lex.skip_whitespace();
+        lex.next();
+        assert!(lex.is_done());
+    }
+
+    #[test]
+    fn in_progress() {
+        let c = "1 + 2";
+        let mut lex = Lexer::new(c);
+        lex.skip_whitespace();
+        lex.next().unwrap();
+        assert!(lex.next().unwrap().kind().is_operator());
     }
 }
 
