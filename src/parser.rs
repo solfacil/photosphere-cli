@@ -48,6 +48,8 @@ impl Parser {
             TokenKind::Number => self.parse_number(),
             TokenKind::Boolean => self.parse_boolean(),
             TokenKind::Atom => self.parse_atom(),
+            TokenKind::Charlist => self.parse_charlist(),
+            TokenKind::String => self.parse_string(),
             _ => None,
         }
     }
@@ -85,6 +87,18 @@ impl Parser {
         let token = self.read_token()?;
 
         Some(Box::new(Atom::from(token)))
+    }
+
+    fn parse_charlist(&mut self) -> Expression {
+        let token = self.read_token()?;
+
+        Some(Box::new(Charlist::from(token)))
+    }
+
+    fn parse_string(&mut self) -> Expression {
+        let token = self.read_token()?;
+
+        Some(Box::new(StringLiteral::from(token)))
     }
 
     fn parse_delimited(&mut self) -> Expression {
@@ -358,6 +372,18 @@ mod tests {
     fn should_parse_atom() {
         let expr = Parser::new(setup(":error")).next().unwrap();
         assert_eq!(expr.kind(), NodeKind::Atom);
+    }
+
+    #[test]
+    fn should_parse_charlist() {
+        let expr = Parser::new(setup("'hello'")).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::Charlist);
+    }
+
+    #[test]
+    fn should_parse_string() {
+        let expr = Parser::new(setup(r#""hello""#)).next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::String);
     }
 
     #[test]
