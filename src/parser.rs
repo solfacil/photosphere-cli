@@ -16,6 +16,7 @@ pub enum NodeKind {
     Attribute,
     Boolean,
     Charlist,
+    HashMap,
     List,
     Number,
     String,
@@ -106,7 +107,7 @@ impl Parser {
 
         match next.lexeme().as_str() {
             "[" => self.parse_list(),
-            // "%" => self.parse_hashmap(),
+            "%" => self.parse_hashmap(),
             "{" => self.parse_tuple(),
             _ => None,
         }
@@ -118,16 +119,38 @@ impl Parser {
         let mut elems = Vec::<Box<dyn Node>>::new();
 
         while !self.peek_token()?.kind().is_delimiter() {
-            println!("{:?}", self.peek_token());
             elems.push(self.parse_expression()?);
         }
 
         Some(Box::new(List::new(elems)))
     }
 
-    // fn parse_hashmap(&mut self) -> Expression {
-    //
-    // }
+    fn parse_hashmap(&mut self) -> Expression {
+        self.cursor += 2;
+
+        let mut keys = Vec::<Box<dyn Node>>::new();
+        let mut values = Vec::<Box<dyn Node>>::new();
+
+        while !self.peek_token()?.kind().is_delimiter() {
+            if self.peek_token()?.kind().is_atom() {
+                keys.push(self.parse_atom()?);
+            } else {
+                keys.push(self.parse_string()?);
+            }
+            self.cursor += 1; // skip "=>" or ":"
+            values.push(self.parse_expression()?);
+        }
+
+        if keys.is_empty() || values.is_empty() {
+            return None;
+        }
+
+        if keys.len() != values.len() {
+            return None;
+        }
+
+        Some(Box::new(HashMap::new(keys, values)))
+    }
 
     fn parse_tuple(&mut self) -> Expression {
         self.cursor += 1;
@@ -390,6 +413,14 @@ mod tests {
     fn should_parse_list() {
         let expr = Parser::new(setup("[42, 42]")).next().unwrap();
         assert_eq!(expr.kind(), NodeKind::List);
+    }
+
+    #[test]
+    fn should_parse_hashmap() {
+        let mut p = Parser::new(setup("%{id: 42}"));
+        println!("{:?}", p);
+        let expr = p.next().unwrap();
+        assert_eq!(expr.kind(), NodeKind::HashMap);
     }
 
     #[test]
