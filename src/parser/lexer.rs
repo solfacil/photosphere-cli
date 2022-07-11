@@ -1,4 +1,5 @@
 pub use self::token::{Token, TokenKind};
+use regex::Regex;
 use std::char;
 
 mod token;
@@ -35,8 +36,8 @@ impl Lexer {
             '#' => self.read_comment(),
             '?' => self.read_char(),
             '.' => self.read_dot(),
+            '"' => self.read_string(),
             ch if ch.is_uppercase() || ch.eq(&':') => self.read_atom(),
-            ch if is_quote(ch) => self.read_quote(),
             ch if is_delim(ch) => self.read_delim(),
             ch if is_operator(ch) => self.read_operator(),
             ch if ch.is_numeric() => self.read_number(),
@@ -107,6 +108,33 @@ impl Lexer {
         Some(Token::new(TokenKind::Dot, dot))
     }
 
+    fn read_string(&mut self) -> Option<Token> {
+        let single_re = Regex::new(r#""(.+)""#).unwrap();
+        let heredoc_re = Regex::new(r#""{3}(\s|.)+"{3}"#).unwrap();
+
+        let content = String::from_iter(self.input[self.cursor..].to_vec());
+
+        if heredoc_re.is_match(&content) {
+            let caps = heredoc_re.captures(&content)?;
+            let multiline = caps.get(0)?.as_str();
+
+            self.cursor += multiline.len();
+
+            return Some(Token::new(TokenKind::String, multiline.to_string()));
+        }
+
+        if !single_re.is_match(&content) {
+            return None;
+        }
+
+        let caps = single_re.captures(&content)?;
+        let string = caps.get(0)?.as_str();
+
+        self.cursor += string.len();
+
+        Some(Token::new(TokenKind::String, string.to_string()))
+    }
+
     fn read_comment(&mut self) -> Option<Token> {
         let comment = self.read_while(|ch| !is_newline(ch))?;
 
@@ -130,12 +158,6 @@ impl Lexer {
         // IMPROVE ME double colon is
         // a macro for defining typespecs
         self.read_operator()
-    }
-
-    fn read_quote(&mut self) -> Option<Token> {
-        let quote = self.read()?.to_string();
-
-        Some(Token::new(TokenKind::Quote, quote))
     }
 
     fn read_number(&mut self) -> Option<Token> {
@@ -503,20 +525,6 @@ mod tests {
     }
 
     #[test]
-    fn should_read_quotes() {
-        let quotes = "'\"";
-        let mut lex = Lexer::new(quotes);
-
-        let single = lex.next().unwrap();
-        assert!(single.kind().is_quote());
-        assert_eq!(single.lexeme(), "'");
-
-        let double = lex.next().unwrap();
-        assert!(double.kind().is_quote());
-        assert_eq!(double.lexeme(), "\"");
-    }
-
-    #[test]
     fn should_read_operator() {
         let ops = r##"
             \- + / ^ ^^^ &&& & \\\ * ** 
@@ -538,5 +546,43 @@ mod tests {
         let token = Lexer::new(comment).next().unwrap();
         assert!(token.kind().is_comment());
         assert_eq!(token.lexeme(), comment.to_string());
+    }
+
+    mod strings {
+        use super::*;
+
+        #[test]
+        fn should_read_single_quote() {
+            let string = r#""hello, world""#;
+            let token = Lexer::new(string).next().unwrap();
+            assert!(token.kind().is_string());
+            assert_eq!(token.lexeme(), string.to_string());
+        }
+
+        #[test]
+        fn should_read_template_literal() {
+            let string = r##""hello, #{name}""##;
+            let token = Lexer::new(string).next().unwrap();
+            assert!(token.kind().is_string());
+            assert_eq!(token.lexeme(), string.to_string());
+        }
+
+        #[test]
+        fn should_read_char_literals() {
+            let string = r#""hello, \n\n world""#;
+            let token = Lexer::new(string).next().unwrap();
+            assert!(token.kind().is_string());
+            assert_eq!(token.lexeme(), string.to_string());
+        }
+
+        #[test]
+        fn should_read_heredoc() {
+            let heredoc = r#""""
+              hello, world!
+            """"#;
+            let token = Lexer::new(heredoc).next().unwrap();
+            assert!(token.kind().is_string());
+            assert_eq!(token.lexeme(), heredoc.to_string());
+        }
     }
 }

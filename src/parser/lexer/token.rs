@@ -16,7 +16,7 @@ pub enum TokenKind {
     Identifier,
     Number, // int, float, bin, oct, hex
     Operator,
-    Quote,
+    String,
 }
 
 impl Token {
@@ -74,7 +74,7 @@ impl TokenKind {
         matches!(self, TokenKind::Operator)
     }
 
-    pub fn is_quote(&self) -> bool {
-        matches!(self, TokenKind::Quote)
+    pub fn is_string(&self) -> bool {
+        matches!(self, TokenKind::String)
     }
 }

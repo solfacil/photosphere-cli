@@ -109,6 +109,10 @@ impl Parser {
         Some(Box::new(List::new(elems)))
     }
 
+    // fn parse_hashmap(&mut self) -> Expression {
+    //
+    // }
+
     fn parse_tuple(&mut self) -> Expression {
         self.cursor += 1;
 
