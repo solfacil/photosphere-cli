@@ -37,6 +37,7 @@ impl Lexer {
             '?' => self.read_char(),
             '.' => self.read_dot(),
             '"' => self.read_string(),
+            '\'' => self.read_charlist(),
             ch if ch.is_uppercase() || ch.eq(&':') => self.read_atom(),
             ch if is_delim(ch) => self.read_delim(),
             ch if is_operator(ch) => self.read_operator(),
@@ -106,6 +107,23 @@ impl Lexer {
         let dot = self.read_while(|c| c.eq(&'.'))?;
 
         Some(Token::new(TokenKind::Dot, dot))
+    }
+
+    fn read_charlist(&mut self) -> Option<Token> {
+        let re = Regex::new(r"'(.+).").unwrap();
+
+        let content = String::from_iter(self.input[self.cursor..].to_vec());
+
+        if !re.is_match(&content) {
+            return None;
+        }
+
+        let caps = re.captures(&content)?;
+        let charlist = caps.get(0)?.as_str();
+
+        self.cursor += charlist.len();
+
+        Some(Token::new(TokenKind::Charlist, charlist.to_string()))
     }
 
     fn read_string(&mut self) -> Option<Token> {
@@ -546,6 +564,14 @@ mod tests {
         let token = Lexer::new(comment).next().unwrap();
         assert!(token.kind().is_comment());
         assert_eq!(token.lexeme(), comment.to_string());
+    }
+
+    #[test]
+    fn should_read_charlist() {
+        let charlist = "'hello, world'";
+        let token = Lexer::new(charlist).next().unwrap();
+        assert!(token.kind().is_charlist());
+        assert_eq!(token.lexeme(), charlist.to_string());
     }
 
     mod strings {

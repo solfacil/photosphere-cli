@@ -15,8 +15,10 @@ pub enum NodeKind {
     Atom,
     Attribute,
     Boolean,
+    Charlist,
     List,
     Number,
+    String,
     Tuple,
 }
 
