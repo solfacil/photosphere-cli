@@ -38,7 +38,7 @@ impl Node for HashMap {
 
 #[cfg(test)]
 mod tests {
-    use super::super::{AnonCall, List, Number};
+    use super::super::{AnonCall, Atom, List, Number};
     use super::*;
     use crate::parser::{Token, TokenKind};
 
