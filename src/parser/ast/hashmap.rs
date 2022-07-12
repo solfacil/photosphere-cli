@@ -1,5 +1,4 @@
-use crate::parser::{Node, NodeKind, Token};
-use super::{Atom, StringLiteral};
+use crate::parser::{Node, NodeKind};
 
 type Key = Box<dyn Node>;
 type Value = Box<dyn Node>;
@@ -41,16 +40,13 @@ impl Node for HashMap {
 mod tests {
     use super::super::{AnonCall, List, Number};
     use super::*;
-    use crate::parser::TokenKind;
+    use crate::parser::{Token, TokenKind};
 
     #[test]
     fn should_stringify_atom_maps() {
         let id_t = Token::new(TokenKind::Atom, "id".to_string());
         let payments_t = Token::new(TokenKind::Atom, "payments".to_string());
-        let keys: Vec<Key> = vec![
-            Box::new(Atom::from(id_t)),
-            Box::new(Atom::from(payments_t)),
-        ];
+        let keys: Vec<Key> = vec![Box::new(Atom::from(id_t)), Box::new(Atom::from(payments_t))];
         let ident = Token::new(TokenKind::Identifier, "anon".to_string());
         let args = vec![Token::new(TokenKind::Number, "42".to_string())];
         let number = Token::new(TokenKind::Number, "84".to_string());

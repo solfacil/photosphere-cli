@@ -1,4 +1,4 @@
-use crate::parser::{Node, NodeKind, Token, TokenKind};
+use crate::parser::{Node, NodeKind, Token};
 
 pub struct AnonCall {
     identifier: Token,
@@ -32,6 +32,7 @@ impl Node for AnonCall {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::TokenKind;
 
     #[test]
     fn to_string() {

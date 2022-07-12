@@ -1,4 +1,4 @@
-use crate::parser::{Node, NodeKind, Token, TokenKind};
+use crate::parser::{Node, NodeKind, Token};
 
 pub struct Atom {
     token: Token,
@@ -23,6 +23,7 @@ impl Node for Atom {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::parser::TokenKind;
 
     #[test]
     fn atom() {

@@ -1,4 +1,4 @@
-use crate::parser::{Node, NodeKind, Token, TokenKind};
+use crate::parser::{Node, NodeKind, Token};
 
 pub struct Attribute {
     identifier: Token,
@@ -25,6 +25,7 @@ impl Node for Attribute {
 mod tests {
     use super::super::AnonCall;
     use super::*;
+    use crate::parser::TokenKind;
 
     #[test]
     fn to_string() {

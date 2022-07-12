@@ -1,4 +1,4 @@
-use crate::parser::{Node, NodeKind, Token, TokenKind};
+use crate::parser::{Node, NodeKind};
 
 pub struct List {
     elems: Vec<Box<dyn Node>>,
@@ -31,6 +31,7 @@ impl Node for List {
 mod tests {
     use super::super::{AnonCall, Number};
     use super::*;
+    use crate::parser::{Token, TokenKind};
 
     #[test]
     fn basic_list() {
