@@ -1,7 +1,7 @@
-use crate::parser::{Node, NodeKind};
+use crate::parser::{Expression, Node, NodeKind};
 
-type Key = Box<dyn Node>;
-type Value = Box<dyn Node>;
+type Key = Expression;
+type Value = Expression;
 
 pub struct HashMap {
     keys: Vec<Key>,
@@ -50,7 +50,7 @@ mod tests {
         let ident = Token::new(TokenKind::Identifier, "anon".to_string());
         let args = vec![Token::new(TokenKind::Number, "42".to_string())];
         let number = Token::new(TokenKind::Number, "84".to_string());
-        let list_elems: Vec<Box<dyn Node>> = vec![Box::new(Number::from(number))];
+        let list_elems: Vec<Expression> = vec![Box::new(Number::from(number))];
         let values: Vec<Value> = vec![
             Box::new(AnonCall::new(ident, args)),
             Box::new(List::new(list_elems)),

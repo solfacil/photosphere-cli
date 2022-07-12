@@ -1,11 +1,11 @@
-use crate::parser::{Node, NodeKind};
+use crate::parser::{Expression, Node, NodeKind};
 
 pub struct List {
-    elems: Vec<Box<dyn Node>>,
+    elems: Vec<Expression>,
 }
 
 impl List {
-    pub fn new(elems: Vec<Box<dyn Node>>) -> Self {
+    pub fn new(elems: Vec<Expression>) -> Self {
         List { elems }
     }
 }
@@ -37,7 +37,7 @@ mod tests {
     fn basic_list() {
         let bin_token = Token::new(TokenKind::Number, "0b1010".to_string());
         let de_token = Token::new(TokenKind::Number, "42".to_string());
-        let elems: Vec<Box<dyn Node>> = vec![
+        let elems: Vec<Expression> = vec![
             Box::new(Number::from(bin_token)),
             Box::new(Number::from(de_token)),
         ];
@@ -50,7 +50,7 @@ mod tests {
         let ident = Token::new(TokenKind::Identifier, "anon".to_string());
         let args = vec![Token::new(TokenKind::Number, "42".to_string())];
         let bin_token = Token::new(TokenKind::Number, "0b1010".to_string());
-        let elems: Vec<Box<dyn Node>> = vec![
+        let elems: Vec<Expression> = vec![
             Box::new(AnonCall::new(ident, args)),
             Box::new(Number::from(bin_token)),
         ];

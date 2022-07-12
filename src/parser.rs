@@ -25,7 +25,7 @@ pub enum NodeKind {
 
 // IMPROVE ME use `Result` instead?
 // Elixir only has expressions
-type Expression = Option<Box<dyn Node>>;
+type Expression = Box<dyn Node>;
 
 #[derive(Debug)]
 pub struct Parser {
@@ -41,7 +41,7 @@ impl Parser {
         }
     }
 
-    fn parse_expression(&mut self) -> Expression {
+    fn parse_expression(&mut self) -> Option<Expression> {
         match self.peek_token()?.kind() {
             TokenKind::At => self.parse_attribute(),
             TokenKind::Identifier => self.parse_identifier(),
@@ -55,7 +55,7 @@ impl Parser {
         }
     }
 
-    fn parse_attribute(&mut self) -> Expression {
+    fn parse_attribute(&mut self) -> Option<Expression> {
         self.cursor += 1;
         let identifier = self.read_token()?;
         let value = self.parse_expression()?;
@@ -63,7 +63,7 @@ impl Parser {
         Some(Box::new(Attribute::new(identifier, value)))
     }
 
-    fn parse_identifier(&mut self) -> Expression {
+    fn parse_identifier(&mut self) -> Option<Expression> {
         let ahead = self.peek_token_ahead(1)?;
 
         match ahead.kind() {
@@ -72,37 +72,37 @@ impl Parser {
         }
     }
 
-    fn parse_number(&mut self) -> Expression {
+    fn parse_number(&mut self) -> Option<Expression> {
         let token = self.read_token()?;
 
         Some(Box::new(Number::from(token)))
     }
 
-    fn parse_boolean(&mut self) -> Expression {
+    fn parse_boolean(&mut self) -> Option<Expression> {
         let token = self.read_token()?;
 
         Some(Box::new(Boolean::from(token)))
     }
 
-    fn parse_atom(&mut self) -> Expression {
+    fn parse_atom(&mut self) -> Option<Expression> {
         let token = self.read_token()?;
 
         Some(Box::new(Atom::from(token)))
     }
 
-    fn parse_charlist(&mut self) -> Expression {
+    fn parse_charlist(&mut self) -> Option<Expression> {
         let token = self.read_token()?;
 
         Some(Box::new(Charlist::from(token)))
     }
 
-    fn parse_string(&mut self) -> Expression {
+    fn parse_string(&mut self) -> Option<Expression> {
         let token = self.read_token()?;
 
         Some(Box::new(StringLiteral::from(token)))
     }
 
-    fn parse_delimited(&mut self) -> Expression {
+    fn parse_delimited(&mut self) -> Option<Expression> {
         let next = self.peek_token()?;
 
         match next.lexeme().as_str() {
@@ -113,10 +113,10 @@ impl Parser {
         }
     }
 
-    fn parse_list(&mut self) -> Expression {
+    fn parse_list(&mut self) -> Option<Expression> {
         self.cursor += 1;
 
-        let mut elems = Vec::<Box<dyn Node>>::new();
+        let mut elems = Vec::<Expression>::new();
 
         while !self.peek_token()?.kind().is_delimiter() {
             elems.push(self.parse_expression()?);
@@ -125,11 +125,11 @@ impl Parser {
         Some(Box::new(List::new(elems)))
     }
 
-    fn parse_hashmap(&mut self) -> Expression {
+    fn parse_hashmap(&mut self) -> Option<Expression> {
         self.cursor += 2;
 
-        let mut keys = Vec::<Box<dyn Node>>::new();
-        let mut values = Vec::<Box<dyn Node>>::new();
+        let mut keys = Vec::<Expression>::new();
+        let mut values = Vec::<Expression>::new();
 
         while !self.peek_token()?.kind().is_delimiter() {
             if self.peek_token()?.kind().is_atom() {
@@ -152,10 +152,10 @@ impl Parser {
         Some(Box::new(HashMap::new(keys, values)))
     }
 
-    fn parse_tuple(&mut self) -> Expression {
+    fn parse_tuple(&mut self) -> Option<Expression> {
         self.cursor += 1;
 
-        let mut elems = Vec::<Box<dyn Node>>::new();
+        let mut elems = Vec::<Expression>::new();
 
         while !self.peek_token()?.kind().is_delimiter() {
             elems.push(self.parse_expression()?);
@@ -164,7 +164,7 @@ impl Parser {
         Some(Box::new(Tuple::new(elems)))
     }
 
-    fn parse_anon_call(&mut self) -> Expression {
+    fn parse_anon_call(&mut self) -> Option<Expression> {
         let identifier = self.read_token()?;
         self.cursor += 2; // skip `.` and `(`
 
@@ -223,7 +223,7 @@ impl Parser {
 }
 
 impl Iterator for Parser {
-    type Item = Box<dyn Node>;
+    type Item = Expression;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.parse_expression()

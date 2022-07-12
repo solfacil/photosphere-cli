@@ -1,11 +1,11 @@
-use crate::parser::{Node, NodeKind};
+use crate::parser::{Expression, Node, NodeKind};
 
 pub struct Tuple {
-    elems: Vec<Box<dyn Node>>,
+    elems: Vec<Expression>,
 }
 
 impl Tuple {
-    pub fn new(elems: Vec<Box<dyn Node>>) -> Self {
+    pub fn new(elems: Vec<Expression>) -> Self {
         Tuple { elems }
     }
 }
@@ -37,18 +37,18 @@ mod tests {
     fn basic_tuple() {
         let ok = Token::new(TokenKind::Atom, ":ok".to_string());
         let bin_token = Token::new(TokenKind::Number, "0b1010".to_string());
-        let elems: Vec<Box<dyn Node>> =
+        let elems: Vec<Expression> =
             vec![Box::new(Atom::from(ok)), Box::new(Number::from(bin_token))];
         let tuple = Tuple::new(elems);
         assert_eq!(tuple.to_string(), "{:ok, 0b1010}".to_string())
     }
 
     #[test]
-    fn complex_list() {
+    fn complex_tuple() {
         let ident = Token::new(TokenKind::Identifier, "anon".to_string());
         let args = vec![Token::new(TokenKind::Number, "42".to_string())];
         let err = Token::new(TokenKind::Atom, ":error".to_string());
-        let elems: Vec<Box<dyn Node>> = vec![
+        let elems: Vec<Expression> = vec![
             Box::new(Atom::from(err)),
             Box::new(AnonCall::new(ident, args)),
         ];

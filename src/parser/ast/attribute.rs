@@ -1,12 +1,12 @@
-use crate::parser::{Node, NodeKind, Token};
+use crate::parser::{Expression, Node, NodeKind, Token};
 
 pub struct Attribute {
     identifier: Token,
-    value: Box<dyn Node>,
+    value: Expression,
 }
 
 impl Attribute {
-    pub fn new(identifier: Token, value: Box<dyn Node>) -> Self {
+    pub fn new(identifier: Token, value: Expression) -> Self {
         Attribute { identifier, value }
     }
 }
