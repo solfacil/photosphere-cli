@@ -28,7 +28,7 @@ Then binary will be available at `/result/bin/photosphere`
 
 With Photosphere CLI installed and at you `$PATH` you can safelly:
 ```sh
-photosphere --ssh service new <service_name>
+photosphere service new <service_name> --ssh 
 ```
 
 Where `--ssh` is an optional flag, as the default clone method is `HTTP` and `<service_name>` is
